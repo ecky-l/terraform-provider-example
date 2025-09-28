@@ -24,6 +24,15 @@
 % \lstset{style=mystyle}
 
 \usepackage[plainpages=false,pdfpagelabels,hidelinks]{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  filecolor=magenta,
+  urlcolor=cyan,
+  pdftitle={Overleaf Example},
+  pdfpagemode=FullScreen,
+}
+\urlstyle{same}
 
 %% margins
 \oddsidemargin 0cm
@@ -105,109 +114,15 @@ Our REST API manages a resource called \emph{shop\_article}, which is essentiall
 
 The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
 
-In Wiremock this can be depicted as a \emph{Scenario}~\cite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file is in listing~\ref{lst:article-scenario}.
-\hspace{-3em}\begin{lstlisting}[
-  basicstyle=\ttfamily\scriptsize,
-  numbers=none,
-  label={lst:article-scenario}
-  ]
-{
-  "mappings": [
-    {
-      "scenarioName": "Shampoo",
-      "requiredScenarioState": "Started",
-      "request": {
-        "method": "GET",
-        "url": "/articles/1"
-      },
-      "response": {
-        "status": 404,
-        "body": "{\"error\":\"not found\"}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "scenarioName": "Shampoo",
-      "requiredScenarioState": "Started",
-      "newScenarioState": "Shampoo added",
-	  "request": {
-        "method": "POST",
-        "url": "/articles"
-      },
-      "response": {
-        "status": 201,
-        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "scenarioName": "Shampoo",
-      "requiredScenarioState": "Shampoo added",
-      "request": {
-        "method": "GET",
-        "url": "/articles/1"
-      },
-      "response": {
-        "status": 200,
-        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "scenarioName": "Shampoo",
-      "requiredScenarioState": "Shampoo added",
-      "newScenarioState": "Shampoo changed",
-      "request": {
-        "method": "PUT",
-        "url": "/articles/1"
-      },
-      "response": {
-        "status": 200,
-        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "scenarioName": "Shampoo",
-      "requiredScenarioState": "Shampoo changed",
-      "request": {
-        "method": "GET",
-        "url": "/articles/1"
-      },
-      "response": {
-        "status": 200,
-        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "scenarioName": "Shampoo",
-      "newScenarioState": "Started",
-      "request": {
-        "method": "DELETE",
-        "url": "/articles/1"
-      },
-      "response": {
-        "status": 204
-      }
-    }
-  ]
-}
+In Wiremock this can be depicted as a \emph{Scenario}~\cite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/wiremock/mappings/shampoo.json}{here} in the github repository of this example~\cite{ecky-l_terraform-provider-example_nodate}. Create a directory \emph{mappings} and place the file into this directory. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with
+
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\footnotesize,numbers=none]
+$ java -jar wiremock-standalone-<version>.jar
 \end{lstlisting}
 
-Create a directory \emph{mappings} and place a file with a name ending in \verb'.json' and the content from listing~\ref{lst:article-scenario} into this directory, i.e.~into \verb'mappings/shampoo.json'. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with \verb'java -jar wiremock-standalone-<version>.jar'. You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
+You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
 
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none]
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\footnotesize,numbers=none]
 $ curl -s localhost:8080/articles/1 | jq
 {
   "error": "not found"
