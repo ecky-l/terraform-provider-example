@@ -1,0 +1,263 @@
+\documentclass[paper=a4,fontsize=10pt,toc=listof,numbers=noenddot]{article}
+
+\usepackage[autocite=plain, backend=biber, style=numeric, sorting=nyt]{biblatex}
+\addbibresource{main.bib} % The filename of the bibliography
+
+\usepackage{listings}
+\renewcommand{\lstlistlistingname}{List of Listings}
+% \lstdefinestyle{mystyle}{
+%   basicstyle=\ttfamily\scriptsize,
+%   backgroundcolor=\color[rgb]{0.95,0.90,0.90},
+%   commentstyle=\color[rgb]{0,0.6,0},
+%   keywordstyle=\color[rgb]{0.2,0.6,1},
+%   breakatwhitespace=false,
+%   breaklines=true,
+%   captionpos=b,
+%   keepspaces=true,
+%   numbers=left,
+%   numbersep=5pt,
+%   showspaces=false,
+%   showstringspaces=false,
+%   showtabs=false,
+%   tabsize=2
+% }
+% \lstset{style=mystyle}
+
+\usepackage[plainpages=false,pdfpagelabels,hidelinks]{hyperref}
+
+%% margins
+\oddsidemargin 0cm
+\evensidemargin 0cm
+\textwidth 16cm
+\topmargin 0cm
+%\textheight 24.37cm
+
+\title{Terraform Provider Development}
+\author{Eckhard Lehmann}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+
+blabla
+
+\section{Technology Overview}
+\label{sec:technology-overview}
+
+
+\subsection{The Go Programming Language}
+\label{subsec:go-progr-lang}
+
+Go, or ``golang'' is a modern, general purpose programming language introduced by Google. It is a statically typed and compiled language, which means it comes with the advantage that type checking is done at compile time. Golang has its roots in C, Pascal/Oberon and languages that stem from the concept of \emph{communicating sequential processes} (CSP), like Squeak and Alef \cite{donovan_go_2016}. From the latter it inherits its model of concurrent programming, which is quite outstanding among programming languages and makes Go an interesting choice for parallel programming tasks.
+
+When looking at golang code, the most prominent heritage is from the C programming language. Thus golang is sometimes referred to as \emph{C for the 21st century}. But despite the outside looks quite much like C, there is not much C under the hood. Go has garbage collection, object orientation, memory safety, type-safe pointers and functional elements, which means functions can be bound to arguments, return values and variables, including declaration scope. Additionally it comes with a modern tool set that enables dependency management, testing, documentation generation from source code comments, linting and other tasks to be performed in an everyday usage of the language. All this is combined in the \verb'go' tool, which is the entry- and starting point for every golang project.
+
+The website \url{https://go.dev/} is the main entry point for resources to download and learn golang, including a nice tutorial called a \emph{Tour of Go}. For serious ambitions in developing terraform providers it is a good idea to look at this tutorial and get comfortable with the golang distribution and the \verb'go' tool at least, as everything around terraform and its providers is developed in golang.
+
+\subsection{The \emph{terraform} tool and ecosystem}
+\label{subsec:terr-tool-ecosyst}
+
+Terraform is a tool for managing \emph{Infrastructure as Code} (\emph{IcA}). At the heart is a terraform \emph{state}, a JSON file with a specific structure, that describes the current state of a certain infrastructure in form of its \emph{resources} and a set of resource definitions in \verb'.tf' files inside a directory, called a \emph{terraform module}. To create a infrastructure module, files with the ending \verb'.tf', containing resource definitions are placed in a directory. As a simple, artificial example consider a resource \emph{employee} with certain attributes:
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none,frame=single]
+resource "shop_article" "shampoo" {
+  name        = "Princess Rosalea"
+  description = "Child Shampoo & Conditioner"
+}
+\end{lstlisting}
+
+In reality these are computer resources, such as networks, databases, virtual machine instances, etc. Terraform resources are used to describe conglomerations of computer infrastructure in cloud environments. Thus there is always some kind of \emph{backend} involved, usually a REST API, which implements the logic to provide the respective resources in a cloud environment.
+
+The \verb'terraform' command is used to read the \verb'.tf' files in a directory, take the necessary actions to create the resources (i.e.\ calls the API endpoints), and store the state into a state file. This state file is by default a local JSON file called \verb'terraform.tfstate', but can be configured to reside in a remote location, such as an cloud storage bucket or a database. Whenever resources need to be changed or deleted, or additional resources should be created, the respective resource definitions in the \verb'tf' files can be edited, deleted or extended by new resources. A \verb'terraform apply' would then do three things:
+
+\begin{enumerate}
+\item\label{itm:tf-read} Get the current resources in the backend.
+\item\label{itm:tf-compare} Do a three-way compare between the current state, the fetched real resources and the resource (\verb'tf') files, and then:
+  \begin{itemize}
+  \item Delete resources that are in the backend but not in the resource files.
+  \item Create resources that are not in the backend, but in the resource files.
+  \item Modify resources whose definition has changed in the resource files, compared to the previous definition in the state.
+  \end{itemize}
+\item\label{itm:tf-create-update} Store the new state in the state file.
+\end{enumerate}
+
+Terraform provides its functionality by means of a core component that reads the \verb'.tf' files and manages the state, and a set of plugins, which interact with various backends. These plugins are called \emph{providers}, as they provide the functionality of infrastructure management. They are decoupled from the terraform core and evolve independently. Providers are available for all well-known cloud providers and various other infrastructure providing entities, such as the IAM solution Keycloak \cite{team_keycloak_nodate} or the secret manager Vault \cite{noauthor_vault_nodate}.
+
+An entry point for searching terraform providers and their documentation is the terraform provider registry~\cite{noauthor_terraform_registry_nodate}. There are numerous resources available on terraform with the main entry point being its homepage~\cite{noauthor_terraform_nodate}. A good introduction with live examples can also be found in~\cite{brikman_terraform_2022}.
+
+
+\section{Creating a Terraform Provider with one Resource}
+\label{sec:creat-terr-prov}
+
+\subsection{A Simple REST API Backend}
+\label{subsec:simple-rest-api}
+
+The purpose of terraform is to manage infrastructure as code, that is to create, modify and delete infrastructure \emph{resources}. How exactly these resources look like, is not strictly specified. On a cloud provider like AWS or GCP it might be virtual hardware resources, or firewall and permission rules, while on a keycloak instance it might be OpenID Connect Clients and appropriate credentials. On a local machine it might be files in the file system, service management scripts or mandatory access control policies (such as for SElinux).
+
+However, to keep things simple we will consider a simple REST API backend for the purpose of this demonstration, where the resources are shop articles. Moreover we will not even create this backend - instead we will mock it. Wiremock~\cite{noauthor_wiremock_nodate} is a powerful tool and library, which fulfills the sole objective to return specific responses based on certain matching input criteria. It is normally used to unit-test API clients in a variety of programming languages, when the genuine API backend is not (yet) available or should not be stressed for testing.
+
+\subsubsection{The \emph{shop\_article} Resource}
+\label{subsubsec:empharticle-resource}
+
+Our REST API manages a resource called \emph{shop\_article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of this article.
+
+The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
+
+In Wiremock this can be depicted as a \emph{Scenario}~\cite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file is in listing~\ref{lst:article-scenario}.
+\hspace{-3em}\begin{lstlisting}[
+  basicstyle=\ttfamily\scriptsize,
+  numbers=none,
+  label={lst:article-scenario}
+  ]
+{
+  "mappings": [
+    {
+      "scenarioName": "Shampoo",
+      "requiredScenarioState": "Started",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 404,
+        "body": "{\"error\":\"not found\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "scenarioName": "Shampoo",
+      "requiredScenarioState": "Started",
+      "newScenarioState": "Shampoo added",
+	  "request": {
+        "method": "POST",
+        "url": "/articles"
+      },
+      "response": {
+        "status": 201,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo added",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo added",
+      "newScenarioState": "Shampoo changed",
+      "request": {
+        "method": "PUT",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo changed",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "scenarioName": "Shampoo",
+      "newScenarioState": "Started",
+      "request": {
+        "method": "DELETE",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 204
+      }
+    }
+  ]
+}
+\end{lstlisting}
+
+Create a directory \emph{mappings} and place a file with a name ending in \verb'.json' and the content from listing~\ref{lst:article-scenario} into this directory, i.e.~into \verb'mappings/shampoo.json'. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with \verb'java -jar wiremock-standalone-<version>.jar'. You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none]
+$ curl -s localhost:8080/articles/1 | jq
+{
+  "error": "not found"
+}
+$ curl -sX POST localhost:8080/articles | jq
+{
+  "id": 1,
+  "name": "Princess Rosalea",
+  "description": "Child Shampoo & Conditioner"
+}
+$ curl -s localhost:8080/articles/1 | jq
+{
+  "id": 1,
+  "name": "Princess Rosalea",
+  "description": "Child Shampoo & Conditioner."
+}
+$ curl -sX PUT localhost:8080/articles/1 | jq
+{
+  "id": 1,
+  "name": "Princess Rosalea",
+  "description": "Child Shampoo & Conditioner. Soft on the skin, soft on the environment."
+}
+$ curl -s localhost:8080/articles/1 | jq
+{
+  "id": 1,
+  "name": "Princess Rosalea",
+  "description": "Child Shampoo & Conditioner. Soft on the skin, soft on the environment."
+}
+$ curl -X DELETE localhost:8080/articles/1
+$ curl -s localhost:8080/articles/1 | jq
+{
+  "error": "not found"
+}
+\end{lstlisting}
+
+This is about all we need to back the \emph{shop\_article} resource for our demo terraform provider, which will be the topic of the next sections.
+
+\subsection{Base Provider Configuration}
+\label{subsec:base-prov-conf}
+
+
+
+Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}.
+
+
+
+\section{Summary}
+
+blabla
+
+\printbibliography
+
+\end{document}

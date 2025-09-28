@@ -1,0 +1,92 @@
+{
+  "mappings": [
+    {
+	  "scenarioName": "Shampoo",
+      "requiredScenarioState": "Started",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 404,
+        "body": "{\"error\":\"not found\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+	  "scenarioName": "Shampoo",
+      "requiredScenarioState": "Started",
+	  "newScenarioState": "Shampoo added",
+	  "request": {
+        "method": "POST",
+        "url": "/articles"
+      },
+      "response": {
+        "status": 201,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+	  "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo added",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+	  "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo added",
+	  "newScenarioState": "Shampoo changed",
+      "request": {
+        "method": "PUT",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+	  "scenarioName": "Shampoo",
+      "requiredScenarioState": "Shampoo changed",
+      "request": {
+        "method": "GET",
+        "url": "/articles/1"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"id\":1,\"name\":\"Princess Rosalea\",\"description\":\"Child Shampoo & Conditioner. Soft on the skin, soft on the environment.\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+	{
+	  "scenarioName": "Shampoo",
+	  "newScenarioState": "Started",
+	  "request": {
+		"method": "DELETE",
+		"url": "/articles/1"
+	  },
+	  "response": {
+		"status": 204
+	  }
+	}
+  ]
+}
