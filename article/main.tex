@@ -97,20 +97,16 @@ Terraform provides its functionality by means of a core component that reads the
 An entry point for searching terraform providers and their documentation is the terraform provider registry~\cite{noauthor_terraform_registry_nodate}. There are numerous resources available on terraform with the main entry point being its homepage~\cite{noauthor_terraform_nodate}. A good introduction with live examples can also be found in~\cite{brikman_terraform_2022}.
 
 
-\section{Creating a Terraform Provider with one Resource}
-\label{sec:creat-terr-prov}
-
-\subsection{A Simple REST API Backend}
-\label{subsec:simple-rest-api}
+\section{A Simple REST API Backend}
+\label{sec:simple-rest-api}
 
 The purpose of terraform is to manage infrastructure as code, that is to create, modify and delete infrastructure \emph{resources}. How exactly these resources look like, is not strictly specified. On a cloud provider like AWS or GCP it might be virtual hardware resources, or firewall and permission rules, while on a keycloak instance it might be OpenID Connect Clients and appropriate credentials. On a local machine it might be files in the file system, service management scripts or mandatory access control policies (such as for SElinux).
 
 However, to keep things simple we will consider a simple REST API backend for the purpose of this demonstration, where the resources are shop articles. Moreover we will not even create this backend - instead we will mock it. Wiremock~\cite{noauthor_wiremock_nodate} is a powerful tool and library, which fulfills the sole objective to return specific responses based on certain matching input criteria. It is normally used to unit-test API clients in a variety of programming languages, when the genuine API backend is not (yet) available or should not be stressed for testing.
 
-\subsubsection{The \emph{shop\_article} Resource}
-\label{subsubsec:empharticle-resource}
+\paragraph{The \emph{shop\_article} REST Resource}
 
-Our REST API manages a resource called \emph{shop\_article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of this article.
+Our REST API manages a resource called \emph{shop\_article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of an illustrative example.
 
 The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
 
@@ -160,12 +156,46 @@ $ curl -s localhost:8080/articles/1 | jq
 
 This is about all we need to back the \emph{shop\_article} resource for our demo terraform provider, which will be the topic of the next sections.
 
+\section{Creating a Terraform Provider with one Resource}
+\label{sec:creat-terr-prov}
+
+Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}.
+
+\subsection{The Practitioner's View}
+\label{subsec:practitioners-view}
+
+A \emph{practitioner} is, as frequently denoted in the terraform plugin framework~\cite{noauthor_terraform_framework_nodate}, the person who manages infrastructure as code in terraform. His point of view is a set of \verb'.tf' files in a directory, which makes up a terraform module. For our example, the corresponding terraform code could look like listing~\ref{lst:example.tf}
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none,label=lst:example.tf]
+terraform {
+  required_providers {
+    example = {
+      source  = "example.com/example"
+      version = "0.0.1"
+  }
+}
+
+provider "example" {
+  host = "http://localhost:8080"
+}
+
+resource "example_shop_article" "example" {
+  name        = "Princess Rosalea"
+  description = "Child Shampoo & Conditioner"
+}
+\end{lstlisting}
+
+The module can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/exampletf}{here} in the github repository~\cite{ecky-l_terraform-provider-example_nodate}. Important to note is the \verb'source' parameter in the \verb'required_providers' block inside the \verb'terraform' block. It specifies where a particular provider binary release can be found. This might be the URL of the provider in the provider registry~\cite{noauthor_terraform_registry_nodate}, or at another URL.\ If the source does not refer to a valid URL, it is looked up in the local file system, namely in the directory \verb'~/.terraform.d/plugins/'. From there, the path in \verb'source' is resolved and in this place a zip file with the schema \verb'<name>_<version>_<arch>.zip', which contains the provider binary in the specified version and the host system's architecture.
+
+A \verb'terraform init' in the directory with the terraform sources fetches the provider from the specified source and extracts it in the local \emph{.terraform} directory. A subsequent \verb'terraform plan' shows what is going to happen, i.e.\ creating the specified resource. Then, a \verb'terraform apply' would actually execute the plan. When these commands are run, terraform communicates with the provider and calls a set of functions that are described in the following.
+
 \subsection{Base Provider Configuration}
 \label{subsec:base-prov-conf}
 
 
 
-Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}.
+\subsection{The \emph{shop\_article} Terraform Resource}
+\label{subsec:emphsh-reso}
 
 
 
