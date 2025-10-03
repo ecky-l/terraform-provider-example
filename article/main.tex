@@ -11,23 +11,24 @@
 
 \usepackage{listings}
 \renewcommand{\lstlistlistingname}{List of Listings}
-% \lstdefinestyle{mystyle}{
-%   basicstyle=\ttfamily\scriptsize,
-%   backgroundcolor=\color[rgb]{0.95,0.90,0.90},
-%   commentstyle=\color[rgb]{0,0.6,0},
-%   keywordstyle=\color[rgb]{0.2,0.6,1},
-%   breakatwhitespace=false,
-%   breaklines=true,
-%   captionpos=b,
-%   keepspaces=true,
-%   numbers=left,
-%   numbersep=5pt,
-%   showspaces=false,
-%   showstringspaces=false,
-%   showtabs=false,
-%   tabsize=2
-% }
-% \lstset{style=mystyle}
+\lstdefinestyle{mystyle}{
+  basicstyle=\ttfamily\scriptsize,
+  numbers=none,
+  backgroundcolor=\color[rgb]{0.95,0.90,0.90},
+  commentstyle=\color[rgb]{0,0.6,0},
+  keywordstyle=\color[rgb]{0.2,0.6,1},
+  breakatwhitespace=false,
+  breaklines=true,
+%  captionpos=b,
+  keepspaces=true,
+%  numbers=left,
+%  numbersep=5pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=2
+}
+\lstset{style=mystyle}
 
 \usepackage[plainpages=false,pdfpagelabels,hidelinks]{hyperref}
 \hypersetup{
@@ -74,7 +75,7 @@ The website \url{https://go.dev/} is the main entry point for resources to downl
 
 Terraform is a tool for managing \emph{Infrastructure as Code} (\emph{IcA}). At the heart is a terraform \emph{state}, a JSON file with a specific structure, that describes the current state of a certain infrastructure in form of its \emph{resources} and a set of resource definitions in \verb'.tf' files inside a directory, called a \emph{terraform module}. To create a infrastructure module, files with the ending \verb'.tf', containing resource definitions are placed in a directory. As a simple, artificial example consider a resource \emph{employee} with certain attributes:
 
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none,frame=single]
+\begin{lstlisting}
 resource "shop_article" "shampoo" {
   name        = "Princess Rosalea"
   description = "Child Shampoo & Conditioner"
@@ -114,15 +115,9 @@ Our REST API manages a resource called \emph{shop\_article}, which is essentiall
 
 The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
 
-In Wiremock this can be depicted as a \emph{Scenario}~\cite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/wiremock/mappings/shampoo.json}{here} in the github repository of this example~\cite{ecky-l_terraform-provider-example_nodate}. Create a directory \emph{mappings} and place the file into this directory. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with
+In Wiremock this can be depicted as a \emph{Scenario}~\cite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/wiremock/mappings/shampoo.json}{here} in the github repository of this example~\cite{ecky-l_terraform-provider-example_nodate}. Create a directory \emph{mappings} and place the file into this directory. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with \verb'java -jar wiremock-standalone-<version>.jar'. You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
 
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily\footnotesize,numbers=none]
-$ java -jar wiremock-standalone-<version>.jar
-\end{lstlisting}
-
-You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
-
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize,numbers=none]
+\begin{lstlisting}[language=bash]
 $ curl -s localhost:8080/articles/1 | jq
 {
   "error": "not found"
@@ -175,7 +170,7 @@ A \emph{practitioner} is, as frequently denoted in the terraform plugin framewor
 
 For our example, there is a terraform module (directory) with one file \verb'main.tf'. The content of this file looks like listing~\ref{lst:example.tf} and can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/exampletf}{here} in the github repository~\cite{ecky-l_terraform-provider-example_nodate}.
 
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none,label=lst:example.tf]
+\begin{lstlisting}[label=lst:example.tf]
 terraform {
   required_providers {
     example = {
@@ -210,15 +205,11 @@ The \verb'source' parameter in the \verb'required_providers' block has a special
 \item The provider's name
 \end{itemize}
 
-As a consequence, the source has always the schema \emph{<domain>/<namespace>/<provider name>}. Most providers are hosted on the terraform provider registry~\cite{noauthor_terraform_registry_nodate}, therefore the domain \emph{registry.terraform.io} for those providers can be omitted for convenience. Otherwise it must be a valid domain under which a web server is hosting the provider binaries within the directory structure \emph{<namespace>/<provider name>}. In there, the releases must have a name that follows the schema in~\ref{lst:providerzip}. The \emph{<name>} is same name as in the third component of the provider URL, \verb'<version>' is the provider version, following a semantic versioning schema~\cite{preston-werner_semantic_versioning_nodate} and \emph{<arch>} refers to the architecture and operating system for which the provider binary was compiled.
+As a consequence, the source has always the schema \emph{<domain>/<namespace>/<provider name>}. Most providers are hosted on the terraform provider registry~\cite{noauthor_terraform_registry_nodate}, therefore the domain \emph{registry.terraform.io} for those providers can be omitted for convenience. Otherwise it must be a valid domain under which a web server is hosting the provider binaries within the directory structure \emph{<namespace>/<provider name>}. In there, the releases must have a name that follows the schema \emph{terraform-provider-<name>\_<version>\_<arch>.zip}. The \emph{<name>} here is same name as in the third component of the provider URL, \verb'<version>' is the provider version, following a semantic versioning schema~\cite{preston-werner_semantic_versioning_nodate} and \emph{<arch>} refers to the architecture and operating system for which the provider binary was compiled.
 
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,numbers=none,label=lst:providerzip]
-terraform-provider-<name>_<version>_<arch>.zip
-\end{lstlisting}
+Although recommended, hosting the provider on a domain is strictly speaking not necessary. Alternatively it is possible to keep the zipped binary in a local directory and configure that directory as a \verb'filesystem_mirror'. The process and possibilities are described in~\cite{noauthor_terraform_provider_installation_nodate} and the simplest one is to place the zipped binary in a directory that follows the three-component schema of the provider location underneath \verb'~/.terraform.d/plugins/', where \verb'~' is the users home directory. In our example, with version \emph{0.0.1} and on macOS this would look like:
 
-Although recommended, hosting the provider on a domain is strictly speaking not necessary. Alternatively it is possible to keep the zipped binary in the naming schema~\ref{lst:providerzip} in a local directory and configure that directory as a \verb'filesystem_mirror'. The process and possibilities are described in~\cite{noauthor_terraform_provider_installation_nodate} and the simplest one is to place the zipped binary in a directory that follows the three-component schema of the provider location underneath \verb'~/.terraform.d/plugins/', where \verb'~' is the users home directory. In our example, with version \emph{0.0.1} and on macOS this would look like:
-
-\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,numbers=none]
+\begin{lstlisting}
 /Users/<youruser>/.terraform.d/
 |-- checkpoint_cache
 |-- checkpoint_signature
@@ -242,7 +233,7 @@ This trick is part of the \emph{make} process to install the provider, which we 
 
 Every software project has some kind of structure for source and auxiliary files inside a directory, that is set up once and then does not change much. For a terraform provider this does basically follow the conventions of a go module~\cite{noauthor_go_modules_nodate} and in our example the structure can be found \href{https://github.com/ecky-l/terraform-provider-example/tree/main/src/tfp-example}{here} in the example repository~\cite{ecky-l_terraform-provider-example_nodate}. It looks like listing~\ref{lst:directory-structure}. The module is initialized with the command \verb'go mod init terraform-provider-<name>', with \emph{<name>} being the provider name. A sub module of directory \emph{<name>} contains the provider specific sources, here inside the \verb'example/' directory. The files \verb'go.mod' and \verb'go.sum' are managed by the \verb'go' tool and contain module dependencies and their check sums.
 
-\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,numbers=none,label=lst:directory-structure]
+\begin{lstlisting}[label=lst:directory-structure]
 tfp-example
 |-- docs
 |   |-- index.md
@@ -256,7 +247,7 @@ tfp-example
 
 The special file \verb'main.go' contains the entry point for the provider. A \verb'main()' function inside it starts the provider server, with which the \verb'terraform' tool communicates during runtime via \emph{Remote Procedure Calls} (\emph{RPC}):
 
-\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,numbers=none]
+\begin{lstlisting}[label=lst:main]
 func main() {
     providerserver.Serve(context.Background(), example.New, providerserver.ServeOpts{
         Address: "example.com/tfp-example/example",
@@ -269,6 +260,27 @@ During the development cycle it is frequently necessary to compile, test and ins
 \subsection{Base Provider Configuration}
 \label{subsec:base-prov-conf}
 
+Most providers do usually communicate with some kind of backend and must be configured appropriately to perform this functionality. From the practitioner's point of view (see Section~\ref{subsec:practitioners-view}) this is done with the \verb'provider' block. For a particular provider this block contains all configurable parameters and their values. From the provider developers point of view, the provider looks like the \verb'example/provider.go' file and it contains a few specific implementations.
+
+A provider in the developers view is a structure that implements various methods from the terraform plugin framework~\cite{noauthor_terraform_framework_nodate}. In our case this is the \verb'exampleProvider' struct:
+
+\begin{lstlisting}
+type exampleProvider struct {
+	host string
+}
+\end{lstlisting}
+
+This struct is passed as a receiver to the implementing methods in \verb'provider.go'. A concrete value is created with the \verb'New()' function, which in turn is passed to the \verb'providerserver.Serve()' method in listing~\ref{lst:main} and must therefore return a \verb'provider.Provider' interface type that implicitly implements all the methods for that interface. For this reason the go compiler enforces the implementation of all the necessary methods, which can be seen in \verb'provider.go'.
+
+\begin{description}
+\item[Metadata()] returns the provider name.
+\item[Schema()] specifies and returns the parameters that can be configured in the \verb'provider' block for the resource (see listing~\ref{lst:example.tf}).
+\item[Configure()] is called when a \verb'provider' block occurs in the \verb'.tf' sources and must take care of reading, validating and storing the values for the configurable parameters. In our example there is only one parameter \emph{host}. We check whether it is a valid URL and store it in the \verb'host' field in the provider struct receiver. Typically the configured values must be passed to the provider's resources later on, and this is done via fields in the \verb'provider.ConfigureResponse' pointer argument that is passed to \verb'Configure()'. We will see later, how values are retrieved during resource or data source configuration.
+\item[DataSources()] returns a list of functions that create the \verb'data' source blocks, which are implemented by the provider.
+  \item[Resources()] returns a list of functions that create the \verb'resource' blocks, which are implemented by the provider.
+\end{description}
+
+The return arguments of the latter two methods must be lists of functions, which create \verb'datasource.DataSource' and \verb'resource.Resource' go interface types respectively. They specify methods which must be implemented for the respective \verb'data' and \verb'resource' blocks, and are called during the lifecycle of a terraform run.
 
 \subsection{The \emph{shop\_article} Terraform Resource}
 \label{subsec:emphsh-reso}
