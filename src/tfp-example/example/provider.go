@@ -69,6 +69,9 @@ func (provider *exampleProvider) Configure(ctx context.Context, req provider.Con
 	if _, err := url.ParseRequestURI(provider.host); err != nil {
 		resp.Diagnostics.AddError("Invalid Host URL", fmt.Sprintf("The configured example host [%s] is not a valid URL", provider.host))
 	}
+
+	resp.DataSourceData = provider
+	resp.ResourceData = provider
 }
 
 func (provider *exampleProvider) DataSources(_ context.Context) []func() datasource.DataSource {
