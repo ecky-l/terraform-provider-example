@@ -1,8 +1,9 @@
 terraform {
   required_providers {
     example = {
-      source  = "example.com/example"
+      source  = "example.com/tfp-example/example"
       version = "0.0.1"
+    }
   }
 }
 

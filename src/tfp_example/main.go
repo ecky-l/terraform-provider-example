@@ -17,6 +17,6 @@ func main() {
 		// provider address is used in these tutorials in conjunction with a
 		// specific Terraform CLI configuration for manual development testing
 		// of this provider.
-		Address: "example.com/example",
+		Address: "example.com/tfp-example/example",
 	})
 }

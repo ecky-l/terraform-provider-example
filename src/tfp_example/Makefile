@@ -1,6 +1,6 @@
 
 INSTALL_DIR ?= ${HOME}
-PROVIDER_INSTALL_DIR = $(INSTALL_DIR)/.terraform.d/example.com/example
+PROVIDER_INSTALL_DIR = $(INSTALL_DIR)/.terraform.d/plugins/example.com/tfp-example/example
 
 ACC_TEST_VARS = TF_ACC=1
 
