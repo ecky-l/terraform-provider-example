@@ -1,4 +1,4 @@
-package tfp_example
+package example
 
 import (
 	"context"
@@ -37,10 +37,10 @@ func (p *exampleProvider) Metadata(_ context.Context, _ provider.MetadataRequest
 
 func (p *exampleProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Provider Configuration block to setup the galapagos provider",
+		Description: "Provider Configuration block to setup the example provider",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
-				Description: "HOST for Example API. May also be provided via EXAMPLE_HOST environment variable.",
+				Description: "HOST for Example API.",
 				Optional:    true,
 			},
 		},
