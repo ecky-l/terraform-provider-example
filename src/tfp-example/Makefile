@@ -14,10 +14,10 @@ provider:
 	go build
 
 test:	provider
-	go test
+	go test ./example
 
 acc: provider
-	$(ACC_TEST_VARS) go test
+	$(ACC_TEST_VARS) go test ./example
 
 docs:
 	go generate
