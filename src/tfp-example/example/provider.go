@@ -32,7 +32,7 @@ func New() provider.Provider {
 
 // Metadata returns the provider type name.
 func (p *exampleProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "tfp_example"
+	resp.TypeName = "example"
 }
 
 func (p *exampleProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
@@ -80,5 +80,7 @@ func (provider *exampleProvider) DataSources(_ context.Context) []func() datasou
 
 // Resources defines the resources implemented in the provider.
 func (provider *exampleProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewShopArticleResource,
+	}
 }
