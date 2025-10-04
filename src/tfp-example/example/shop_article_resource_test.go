@@ -20,6 +20,17 @@ resource "example_shop_article" "shampoo" {
     description = "` + description + `"
 }
 `
+	descriptionUpdated := "Child Shampoo & Conditioner. Soft on the skin, soft on the environment."
+	resourceUpdateTf := `
+provider "example" {
+  host = "http://localhost:8080"
+}
+
+resource "example_shop_article" "shampoo" {
+    name = "` + name + `"
+    description = "` + descriptionUpdated + `"
+}
+`
 
 	shampooResource := "example_shop_article.shampoo"
 
@@ -27,12 +38,19 @@ resource "example_shop_article" "shampoo" {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
+				// Create Resource initially
 				Config: resourceTf,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr(
-						shampooResource, "name", name),
-					resource.TestCheckResourceAttr(
-						shampooResource, "description", description),
+					resource.TestCheckResourceAttr(shampooResource, "name", name),
+					resource.TestCheckResourceAttr(shampooResource, "description", description),
+				),
+			},
+			{
+				// Update Resource after create
+				Config: resourceUpdateTf,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr(shampooResource, "name", name),
+					resource.TestCheckResourceAttr(shampooResource, "description", descriptionUpdated),
 				),
 			},
 		},

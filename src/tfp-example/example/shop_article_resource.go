@@ -1,7 +1,12 @@
 package example
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -14,10 +19,16 @@ type shopArticleResource struct {
 	provider *exampleProvider
 }
 
-type shopArticleModel struct {
-	ID          types.String `tfsdk:"id"`
+type shopArticleResourceModel struct {
+	ID          types.Int64  `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
+}
+
+type shopArticleRESTModel struct {
+	ID          int64  `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 // NewApplicationResource is a helper function to simplify the provider implementation.
@@ -62,21 +73,159 @@ func (s *shopArticleResource) Schema(_ context.Context, _ resource.SchemaRequest
 }
 
 // Create implements resource.Resource.
-func (s *shopArticleResource) Create(context.Context, resource.CreateRequest, *resource.CreateResponse) {
-	panic("unimplemented")
+func (s *shopArticleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan shopArticleResourceModel
+	diag := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	body, err := json.Marshal(shopArticleRESTModel{
+		Name:        plan.Name.ValueString(),
+		Description: plan.Description.ValueString(),
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json marshalling error: %v", err))
+		return
+	}
+
+	url := fmt.Sprintf("%s/articles", s.provider.host)
+	httpResp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("HTTP Post Error with URL [%s]: %v", url, err))
+		return
+	}
+	if httpResp.StatusCode >= 400 {
+		respB, _ := io.ReadAll(httpResp.Body)
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Backend returned bad status %d: %s", httpResp.StatusCode, respB))
+		return
+	}
+
+	var respBody shopArticleRESTModel
+	dec := json.NewDecoder(httpResp.Body)
+	if err := dec.Decode(&respBody); err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json unmarshalling error: %v", err))
+		return
+	}
+
+	plan.ID = types.Int64Value(respBody.ID)
+	diag = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diag...)
 }
 
 // Delete implements resource.Resource.
-func (s *shopArticleResource) Delete(context.Context, resource.DeleteRequest, *resource.DeleteResponse) {
-	panic("unimplemented")
+func (s *shopArticleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state shopArticleResourceModel
+	diag := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	url := fmt.Sprintf("%s/articles/%d", s.provider.host, state.ID.ValueInt64())
+	httpReq, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Delete", fmt.Sprintf("Error creating DELETE request for URL [%s]: %v", url, err))
+		return
+	}
+
+	client := &http.Client{}
+	httpResp, err := client.Do(httpReq)
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Delete", fmt.Sprintf("HTTP DELETE Error with URL [%s]: %v", url, err))
+		return
+	}
+	if httpResp.StatusCode != 204 {
+		resp.Diagnostics.AddError("Error during article Delete", fmt.Sprintf("HTTP DELETE Error with URL [%s] returned not the expected result code. Should be 204 but was %d", url, httpResp.StatusCode))
+	}
 }
 
 // Read implements resource.Resource.
-func (s *shopArticleResource) Read(context.Context, resource.ReadRequest, *resource.ReadResponse) {
-	panic("unimplemented")
+func (s *shopArticleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state shopArticleResourceModel
+	diag := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	url := fmt.Sprintf("%s/articles/%d", s.provider.host, state.ID.ValueInt64())
+	httpResp, err := http.Get(url)
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Read", fmt.Sprintf("HTTP Get Error with URL [%s]: %v", url, err))
+		return
+	}
+
+	var respBody shopArticleRESTModel
+	dec := json.NewDecoder(httpResp.Body)
+	if err := dec.Decode(&respBody); err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json unmarshalling error: %v", err))
+		return
+	}
+
+	state.Name = types.StringValue(respBody.Name)
+	state.Description = types.StringValue(respBody.Description)
+	diag = resp.State.Set(ctx, state)
+	resp.Diagnostics.Append(diag...)
 }
 
 // Update implements resource.Resource.
-func (s *shopArticleResource) Update(context.Context, resource.UpdateRequest, *resource.UpdateResponse) {
-	panic("unimplemented")
+func (s *shopArticleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan, state shopArticleResourceModel
+	diag := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	diag = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// create payload for update
+	body, err := json.Marshal(shopArticleRESTModel{
+		Name:        plan.Name.ValueString(),
+		Description: plan.Description.ValueString(),
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json marshalling error: %v", err))
+		return
+	}
+
+	// perform PUT request to backend
+	url := fmt.Sprintf("%s/articles/%d", s.provider.host, state.ID.ValueInt64())
+	httpReq, err := http.NewRequest("PUT", url, bytes.NewReader(body))
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Update", fmt.Sprintf("Error creating PUT request for URL [%s]: %v", url, err))
+		return
+	}
+
+	client := &http.Client{}
+	httpResp, err := client.Do(httpReq)
+	if err != nil {
+		resp.Diagnostics.AddError("Error during article Update", fmt.Sprintf("HTTP PUT Error with URL [%s]: %v", url, err))
+		return
+	}
+	if httpResp.StatusCode >= 400 {
+		respB, _ := io.ReadAll(httpResp.Body)
+		resp.Diagnostics.AddError("Error during article Update", fmt.Sprintf("Backend returned bad status %d: %s", httpResp.StatusCode, respB))
+		return
+	}
+
+	// read response
+	var respBody shopArticleRESTModel
+	dec := json.NewDecoder(httpResp.Body)
+	if err := dec.Decode(&respBody); err != nil {
+		resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json unmarshalling error: %v", err))
+		return
+	}
+
+	state.ID = types.Int64Value(respBody.ID)
+	state.Name = types.StringValue(respBody.Name)
+	state.Description = types.StringValue(respBody.Description)
+
+	diag = resp.State.Set(ctx, state)
+	resp.Diagnostics.Append(diag...)
 }

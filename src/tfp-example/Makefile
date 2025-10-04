@@ -17,7 +17,7 @@ test:	provider
 	go test ./example
 
 acc: provider
-	$(ACC_TEST_VARS) go test ./example
+	$(ACC_TEST_VARS) go test -v ./example
 
 docs:
 	go generate
