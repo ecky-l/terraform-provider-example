@@ -265,7 +265,7 @@ func main() {
 
 During the development cycle it is frequently necessary to compile, test and install the latest binary. We use a \emph{Makefile} to ease the burden of these frequent cycles, which takes care of compressing and installing the binary in the directory mentioned in Section~\ref{subsubsec:prov-inst}. To do this, you can just type \verb'make install' inside the \verb'tfp-example' directory.
 
-\subsubsection{Provider Configuration}
+\subsubsection{The Provider and its Configuration}
 \label{subsubsec:base-prov-conf}
 
 Most providers do usually communicate with some kind of backend and must be configured appropriately to perform this functionality. From the practitioner's point of view (see Section~\ref{subsec:practitioners-view}) this is done with the \verb'provider' block. For a particular provider this block contains all configurable parameters and their values. From the provider developers point of view, the provider looks like the \verb'example/provider.go' file and it contains a few specific implementations.
@@ -304,7 +304,77 @@ Although the second option is appealing, as it does not require any other tools 
 \subsubsection{The \emph{shop\_article} Terraform Resource}
 \label{subsec:emphsh-reso}
 
+For our example we implement one resource with the name \emph{example\_shop\_article}. The corresponding implementation is in \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource.go}{this file} in the example repository~\cite{ecky-l_terraform-provider-example_nodate} and short descriptions of what is happening in this file follow here.
 
+As with the provider itself, each resource is represented by a \emph{struct} and can contain arbitrary data. For our example the resources struct looks like the one in listing~\ref{lst:shopArticleResource}.
+
+\begin{lstlisting}[label=lst:shopArticleResource]
+type shopArticleResource struct {
+	provider *exampleProvider
+}
+\end{lstlisting}
+
+Its only field is a pointer to the provider struct value, to which it belongs. This field is filled during the terraform lifecycle in the \verb'Configure()' method of the resource struct as described below. Another struct, in our example called \verb'shopArticleResourceModel', represents a concrete resource of that type with corresponding values. This struct is instantiated for each concrete resource of the resource type and passed from and to the terraform provider \verb'request' and \verb'response' arguments in the callbacks. It serves for two things:
+
+\begin{description}
+\item[The \emph{plan}] is the desired resources state when the terraform lifecycle is finished. It is determined from the \verb'.tf' files in a terraform module and contains the parameters for the resource ``to be''.
+\item[The \emph{state}] is the resource that \emph{exists} in the terraform state due to prior creation or modification. An empty state is created for a resource that not (yet) exists.
+\end{description}
+
+When a \verb'terraform plan' is executed by the practitioner, the plan and state values for each resource are compared and divergences are determined. If no divergences exist, the terraform lifecycle finishes with an appropriate message. Otherwise terraform shows what needs to be done to bring the state in sync with the plan for that resource. In our example the resource model struct is shown in listing~\ref{lst:shopArticleResourceModel}.
+
+\begin{lstlisting}[label=lst:shopArticleResourceModel]
+type shopArticleResourceModel struct {
+	ID          types.Int64  `tfsdk:"id"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+}
+\end{lstlisting}
+
+The \verb'`tfsdk:*`' directives after each field indicate which parameters in the \emph{resource schema} are to be used for the field value. They ensure that the values in a resource definition, like the one in listing~\ref{lst:example.tf}, are put into the fields of the \emph{plan} for that resource.
+
+A function that returns an instance of the struct must be listed in the return value of the \verb'Resources()' method of the provider (see Section~\ref{subsubsec:base-prov-conf}) in order to actually hook the resource in. This enforces that the resource's struct implements a set of methods, namely:
+
+\begin{description}
+\item[Metadata()] is called by terraform to determine meta data of the resource block. Most notably it registers the name of the resource, such that a resource definition like in listing~\ref{lst:example.tf} is possible.
+\item[Configure()] is called when terraform encounters a \verb'resource' block of the respective type. In this callback it is possible to pass provider parameters to the resource struct. In our example resource we set a pointer to the provider struct into the resource, by which we can later refer to the backend host. More parameters are possible as needed.
+\item[Schema()] is called to determine which parameters are possible for the resource. It returns a defined \verb'schema.Schema' value with the possible parameters of the resource and its constraints. In our example, note the \verb'PlanModifiers' setting. By specifying the \verb'RequiresReplace' plan modifier, the resource would be deleted and re-created if the practitioner changes its name. Other such plan modifiers are possible and can even be self-implemented.
+\item[Create()] is called when terraform determines that a declared resource must be created. This callback must implement the creation of the entity in the backend. In our case we issue a \verb'POST' call to our web service to create a shop article. Afterwards the parameters of the newly created resource must be set to the state model and the state must be updated in the \emph{response} argument of the callback.
+\item[Delete()] is called when terraform determines that a resource must be deleted. This is the case either when \verb'terraform destroy' has been called or the resource declaration is not present anymore in the terraform module. The callback must implement the deletion of the resource in the backend, in our case we issue a \verb'DELETE' request to our web service.
+\item[Read()] is called when terraform needs to determine the backend state of a declared resource. This is the case either when the resource is to be imported, or in order to synchronize the terraform state with the backend state. When talking to a REST web service, the callback does usually implement a \verb'GET' call to retrieve the backing entity of the resource, i.e.\ by ID.\ We call \verb'GET /articles/<id>' to retrieve the shop article from the web service and update the state values in the \emph{response} argument of the callback.
+  \item[Update()] is called when the terraform \emph{plan} (the resource value that has been determined from the \verb'.tf' files) diverges from the terraform \emph{state}. In this case the backend entity must eventually be updated and the callback must implement the corresponding logic. In our example we determine the plan's new description value and send a \verb'PUT' call with an appropriate JSON payload to our backend to update the entity.
+\end{description}
+
+The methods do closely interact with their arguments. As you can see, the \verb'response' arguments are pointers to various types inside the terraform provider framework. The intend behind this is that values inside the response are meant to be updated by the callback, for instance should the resource state with updated values be set into the response.
+
+\paragraph{Error Handling}
+
+The response argument to the callbacks does also contain a field called \verb'Diagnostics'. It serves as a storage for information that is formatted and displayed to the practitioner during the terraform lifecycle and is particularly useful for error messages. Therefore the error handling is done frequently by a call to \verb'response.Diagnostics.AddError()', like in listing~\ref{lst:errorHandling} for JSON unmarshalling.
+
+\begin{lstlisting}[label=lst:errorHandling]
+if err := dec.Decode(&respBody); err != nil {
+    resp.Diagnostics.AddError("Error during article Create", fmt.Sprintf("Json unmarshalling error: %v", err))
+    return
+}
+\end{lstlisting}
+
+If the caught error occures, the practitioner would see the appropriate message:
+
+\begin{lstlisting}
+...
+example_shop_article.example: Creating...
+|
+| Error: Error during article Create
+|
+|   with example_shop_article.example,
+|   on main.tf line 14, in resource "example_shop_article" "example":
+|   14: resource "example_shop_article" "example" {
+|
+| Json unmarshalling error: unexpected EOF
+|
+\end{lstlisting}
+
+The callback implementations for our example are quite simple. Normally one would encapsulate the backend calls in a helper function or object, instead of repeating the code in every callback function, and also do more advanced error handling. But for demonstration purposes it is just fine to have it that direct way.
 
 \section{Summary}
 
