@@ -163,7 +163,7 @@ Communication between the terraform core and the providers is implemented via an
 \subsection{The Practitioner's View}
 \label{subsec:practitioners-view}
 
-A \emph{practitioner} is, as frequently denoted in the terraform plugin framework~\cite{noauthor_terraform_framework_nodate}, the person who manages infrastructure as code in terraform. His point of view is a set of \verb'.tf' files in a directory, which makes up a terraform module.
+A \emph{practitioner} is, as frequently denoted in the terraform plugin framework~\cite{noauthor_terraform_framework_nodate}, the person who manages infrastructure as code in terraform. His point of view is a set of \verb'.tf' files in a directory, which makes up a terraform module. He is using the resources and data sources that a terraform provider provides and he is mostly concerned about creating and maintaining resources as code, as well as about installing and updating providers. His infrastructure should be kept stable among those installations and updates. A good introduction and guideline on the practitioner's view of terraform is~\cite{brikman_terraform_2022}. In this section we will see how the world looks like from his perspective.
 
 \subsubsection{An example terraform module}
 \label{subsubsec:an-example-terraform}
@@ -189,7 +189,7 @@ resource "example_shop_article" "example" {
 }
 \end{lstlisting}
 
-Each terraform main module\footnote{There are also sub modules, which do not necessarily contain all configuration options when used in other (main) modules.} contains at least one \verb'terraform' block in which the \verb'required_providers' are configured. Each provider is listed by its name, the source where it can be downloaded. The required version is optional, otherwise the latest version is resolved and used. It follows an optional \verb'provider' block for each required provider, in which special configuration can be passed. Afterwards, the resources and data sources of the provider can be used.
+Each terraform main module\footnote{There are also sub modules, which do not necessarily contain all configuration options when used in other (main) modules.} contains at least one \verb'terraform' block in which the \emph{required providers} are configured. Each provider is listed by its name and the source where it can be downloaded. The required version is optional, otherwise the latest version is resolved and used. It follows an optional \verb'provider' block for each required provider, in which special configuration can be passed. Afterwards, the resources and data sources of the provider can be used.
 
 A \verb'terraform init' in the directory with the terraform sources fetches the provider from the specified source and extracts it in the local \emph{.terraform} directory. A subsequent \verb'terraform plan' shows what is going to happen, i.e.\ creating the specified resource. Then, a \verb'terraform apply' would actually execute the plan. When these commands are run, terraform communicates with the provider and calls a set of functions that are described in the following.
 
@@ -228,8 +228,13 @@ go version | cut -d' ' -f4 | sed -E 's/\//_/'
 
 This trick is part of the \emph{make} process to install the provider, which we will see in the next section.
 
-\subsection{Provider Sources Structure and Development Cycle}
-\label{subsec:prov-sourc-struct}
+\subsection{The Developer's View}
+\label{subsec:developers-view}
+
+From the perspective of a provider developer, things look a little different. Nevertheless he needs to see the practitioner's view as well and it is necessary that a plugin developer knows how terraform works, let alone to manually test his implementation. The most important resource during the course of provider development is the terraform framework documentation~\cite{noauthor_terraform_framework_nodate}, where references and guidelines for provider development can be found. Here we will have a close look at a simple but self contained provider example. We start with an overview of the source and directory structure and then describe the source files themselves. The sources are not shown here in their entirety, but are referenced from the provider example repository~\cite{ecky-l_terraform-provider-example_nodate}. Where appropriate, small peaces are shown here as listings.
+
+\subsubsection{Sources Structure and Development Cycle}
+\label{subsubsec:prov-sourc-struct}
 
 Every software project has some kind of structure for source and auxiliary files inside a directory, that is set up once and then does not change much. For a terraform provider this does basically follow the conventions of a go module~\cite{noauthor_go_modules_nodate} and in our example the structure can be found \href{https://github.com/ecky-l/terraform-provider-example/tree/main/src/tfp-example}{here} in the example repository~\cite{ecky-l_terraform-provider-example_nodate}. It looks like listing~\ref{lst:directory-structure}. The module is initialized with the command \verb'go mod init terraform-provider-<name>', with \emph{<name>} being the provider name. A sub module of directory \emph{<name>} contains the provider specific sources, here inside the \verb'example/' directory. The files \verb'go.mod' and \verb'go.sum' are managed by the \verb'go' tool and contain module dependencies and their check sums.
 
@@ -238,7 +243,10 @@ tfp-example
 |-- docs
 |   |-- index.md
 |-- example
+|   |-- provider_test.go
 |   |-- provider.go
+|   |-- shop_article_resource_test.go
+|   |-- shop_article_resource.go
 |-- go.mod
 |-- go.sum
 |-- main.go
@@ -257,8 +265,8 @@ func main() {
 
 During the development cycle it is frequently necessary to compile, test and install the latest binary. We use a \emph{Makefile} to ease the burden of these frequent cycles, which takes care of compressing and installing the binary in the directory mentioned in Section~\ref{subsubsec:prov-inst}. To do this, you can just type \verb'make install' inside the \verb'tfp-example' directory.
 
-\subsection{Base Provider Configuration}
-\label{subsec:base-prov-conf}
+\subsubsection{Provider Configuration}
+\label{subsubsec:base-prov-conf}
 
 Most providers do usually communicate with some kind of backend and must be configured appropriately to perform this functionality. From the practitioner's point of view (see Section~\ref{subsec:practitioners-view}) this is done with the \verb'provider' block. For a particular provider this block contains all configurable parameters and their values. From the provider developers point of view, the provider looks like the \verb'example/provider.go' file and it contains a few specific implementations.
 
@@ -282,7 +290,18 @@ This struct is passed as a receiver to the implementing methods in \verb'provide
 
 The return arguments of the latter two methods must be lists of functions, which create \verb'datasource.DataSource' and \verb'resource.Resource' go interface types respectively. They specify methods which must be implemented for the respective \verb'data' and \verb'resource' blocks, and are called during the lifecycle of a terraform run.
 
-\subsection{The \emph{shop\_article} Terraform Resource}
+\subsubsection{A Note on Testing}
+\label{subsubsec:note-on-testing}
+
+It is good practice to start the implementation of any functionality with a unit- or integration test. Not only enforces this that we need to think about the design and implementation details itself - it also helps to test the implementation right from the beginning, by debugging from the test into the logic, and to mitigate regressions later on when the project evolves. The terraform SDK provides a testing framework~\cite{noauthor_terraform_acceptance_testing_nodate}, which can be utilized in a comfortable manner to test all aspects in the lifecycle of a terraform run. At its core there is a call to \verb'resource.Test' or \verb'resource.UnitTest' inside an ordinary Go test with a \verb'resource.TestCase' as argument. This test case contains a list of steps that are executed in order with an internally maintained ephemeral state. The sequence of the test steps would closely resemble how a practitioner runs terraform on his infrastructure and \emph{tfstate} in the course of time: first he creates resources, then eventually updates these resources and then at some point later he deletes the resources again. In a terraform framework \verb'resource.TestCase' the deletion is done automatically as a last implicit step. Another optional step is to import existing resources by ID into the terraform state, which can also be covered.
+
+A unit test for our resource, which is described in Section~\ref{subsec:emphsh-reso}, can be found \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource_test.go}{here}. It defines two steps in one test case, which create and update a \emph{shop\_article} resource, and implicitly delete it afterwards. At each step there are checks defined, which verify that the corresponding resource parameters have been set correctly. If you set up such a test right from the beginning when developing a resource, you can put break points inside the callback functions that are called during the test run and step into these callback functions to get their implementation right. Modern \emph{Integrated Development Environments} (\emph{IDE}s) allow you to run and debug tests directly on click with changed sources. This is much simpler than building and installing the provider each time, and then running terraform from the command line to identify bugs solely by log messages, or trial \& error.
+
+There are two ways to test the code. A \verb'resource.UnitTest' is always executed when \verb'go test' is called. Care must be taken when the code communicates with an actual backend: then the resources are indeed created in this backend, which might not be what you want. Therefore there is a second function \verb'resource.Test', which is only executed when the environment variable \verb'TF_ACC' is set. Although the difference is small, it is good practice to use unit tests with mocked backends, where no actual resources are created, and acceptance tests with real backends, when the real integration with the terraform provider is to be verified. For mocked backends there are several strategies. One is to use tools like \emph{Wiremock}~\cite{noauthor_wiremock_nodate}, that pretend to be a backend but just return artificial responses. Another is to use a mock implementation of the backend calling library type, i.e. \verb'http.Client', and a mocking framework, i.e. \emph{testify/mock}~\cite{noauthor_testifymock_nodate}, to specify exact responses for certain calls on the mock. \verb'Go''s implicit interface implementation can help to create mocks for any, even library types that are outside the developer's control.
+
+Although the second option is appealing, as it does not require any other tools and processes to be run, we follow the first approach and use \emph{Wiremock} in this example. The advantage is it's simplicity - responses can just be defined by JSON files in the \verb'mappings/' directory (see Section~\ref{sec:simple-rest-api}). At a downside, \verb'wiremock' must always be started in the background and listen for connections when tests are run, and it must be in the correct state.
+
+\subsubsection{The \emph{shop\_article} Terraform Resource}
 \label{subsec:emphsh-reso}
 
 
