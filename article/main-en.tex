@@ -226,7 +226,52 @@ The \verb'<arch>' depends on the platform where the provider is compiled and use
 go version | cut -d' ' -f4 | sed -E 's/\//_/'
 \end{lstlisting}
 
-This trick is part of the \emph{make} process to install the provider, which we will see in the next section.
+For our example this trick is part of the \verb'install' target in the \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/Makefile}{\emph{Makefile}}, which serves the build and install cycle. The easiest way to install our example provider is to clone the example repository~\cite{ecky-l_terraform-provider-example_nodate}, then change to the \verb'src/tfp-example/' directory and type \verb'make install' (\emph{Go} must be installed as a precondition).
+
+\subsubsection{Provider Usage and the terraform Lifecycle}
+\label{subsubsec:prov-usage-terr}
+
+Once the provider is installed, it can be used. This is done in the two probably most executed terraform commands, which are executed in a terraform main module:
+
+\begin{description}
+\item[terraform plan] compares the current known terraform state with the resource definitions in the \verb'.tf' files. If there are differences, an output is generated that exactly specifies what terraform is going to do in case of \emph{apply}.
+\item[terraform apply] actually executes the changes that were determined in the \emph{plan}. Before that it outputs the changes in the same manner as with \emph{plan} and usually asks for confirmation (which can be suppressed with the \verb'--auto-approve' flag)
+\end{description}
+
+To see this in action for our example, clone the example repository~\cite{ecky-l_terraform-provider-example_nodate}, if you haven't done so already and start \emph{wiremock} as in Section~\ref{sec:simple-rest-api} with the shop article mappings from the directory \verb'src/wiremock/'. Then change to the directory \verb'src/exampletf/' and execute the commands. The \verb'terraform plan' should give the output in listing~\ref{lst:exampletfPlan}.
+
+\begin{lstlisting}[label=lst:exampletfPlan]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # example_shop_article.example will be created
+  + resource "example_shop_article" "example" {
+      + description = "Child Shampoo & Conditioner"
+      + id          = (known after apply)
+      + name        = "Princess Rosalea"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+-----------------------------------------------------------------------------------------
+Note: You didn't use the -out option to save this plan, so Terraform can't guarantee to take exactly these actions if you run "terraform apply" now.
+
+\end{lstlisting}
+
+A subsequent \verb'terraform apply' should result in the same output as in listing~\ref{lst:exampletfPlan}, plus an additional confirmation inquiry that must be answered literally with ``yes''. If you do this and subsequently execute \verb'terraform plan' again, the output in listing~\ref{lst:exampletfPlanInSync} indicates that the terraform state, the resource definitions in the \verb'.tf' files and the actual resources in the backend are in sync.
+
+\begin{lstlisting}[label=lst:exampletfPlanInSync]
+example_shop_article.example: Refreshing state... [name=Princess Rosalea]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+\end{lstlisting}
+
+This ``terraform lifecycle'' is probably not quite new to somebody who comes here to learn about terraform provider development. However, it is important to remember it during provider development, as callbacks are executed at the different lifecycle stages and the sequence and matching of these executions must be well known. Hence this little reminder ;-).
 
 \subsection{The Developer's View}
 \label{subsec:developers-view}
@@ -290,7 +335,7 @@ This struct is passed as a receiver to the implementing methods in \verb'provide
 
 The return arguments of the latter two methods must be lists of functions, which create \verb'datasource.DataSource' and \verb'resource.Resource' go interface types respectively. They specify methods which must be implemented for the respective \verb'data' and \verb'resource' blocks, and are called during the lifecycle of a terraform run.
 
-\subsubsection{A Note on Testing}
+\subsubsection{A Word on Testing}
 \label{subsubsec:note-on-testing}
 
 It is good practice to start the implementation of any functionality with a unit- or integration test. Not only enforces this that we need to think about the design and implementation details itself - it also helps to test the implementation right from the beginning, by debugging from the test into the logic, and to mitigate regressions later on when the project evolves. The terraform SDK provides a testing framework~\cite{noauthor_terraform_acceptance_testing_nodate}, which can be utilized in a comfortable manner to test all aspects in the lifecycle of a terraform run. At its core there is a call to \verb'resource.Test' or \verb'resource.UnitTest' inside an ordinary Go test with a \verb'resource.TestCase' as argument. This test case contains a list of steps that are executed in order with an internally maintained ephemeral state. The sequence of the test steps would closely resemble how a practitioner runs terraform on his infrastructure and \emph{tfstate} in the course of time: first he creates resources, then eventually updates these resources and then at some point later he deletes the resources again. In a terraform framework \verb'resource.TestCase' the deletion is done automatically as a last implicit step. Another optional step is to import existing resources by ID into the terraform state, which can also be covered.
@@ -378,7 +423,11 @@ The callback implementations for our example are quite simple. Normally one woul
 
 \section{Summary}
 
-blabla
+Sometimes it is necessary to maintain infrastructure as code with terraform for resources, which are not supported out of the box - be it because they are self-developed, or for other reasons. Terraform has a powerful plugin mechanism and well documented SDK, that enables the development of own in-house providers for such cases.
+
+In this article we have introduced the terraform provider framework by using a small, self contained and illustrative example. A terraform provider ``example'' is developed with one resource \emph{shop\_article} that is backed by an artificial REST backend, provided by a \emph{Wiremock scenario}. We have seen how the overall code can be structured, how development versions of a provider can be installed, used and tested, including tips and best practices to use the terraform testing framework.
+
+A accompanying \emph{DataSource} for the \emph{shop\_article} entity is not part of this example. But this is not very complicated after following this article and looking at the sources, so it is left for encouraged readers as an exercise.
 
 \printbibliography
 
