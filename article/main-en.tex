@@ -235,7 +235,8 @@ Once the provider is installed, it can be used. This is done in the two probably
 
 \begin{description}
 \item[terraform plan] compares the current known terraform state with the resource definitions in the \verb'.tf' files. If there are differences, an output is generated that exactly specifies what terraform is going to do in case of \emph{apply}.
-\item[terraform apply] actually executes the changes that were determined in the \emph{plan}. Before that it outputs the changes in the same manner as with \emph{plan} and usually asks for confirmation (which can be suppressed with the \verb'--auto-approve' flag)
+\item[terraform apply] actually executes the changes that were determined in the \emph{plan}. Before that it outputs the changes in the same manner as with \emph{plan} and usually asks for confirmation (which can be suppressed with the \verb'--auto-approve' flag).
+\item[terraform destroy] deletes the resources from the backend and terraform state. This must also be confirmed.
 \end{description}
 
 To see this in action for our example, clone the example repository~\cite{ecky-l_terraform-provider-example_nodate}, if you haven't done so already and start \emph{wiremock} as in Section~\ref{sec:simple-rest-api} with the shop article mappings from the directory \verb'src/wiremock/'. Then change to the directory \verb'src/exampletf/' and execute the commands. The \verb'terraform plan' should give the output in listing~\ref{lst:exampletfPlan}.
@@ -271,7 +272,33 @@ No changes. Your infrastructure matches the configuration.
 Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
 \end{lstlisting}
 
-This ``terraform lifecycle'' is probably not quite new to somebody who comes here to learn about terraform provider development. However, it is important to remember it during provider development, as callbacks are executed at the different lifecycle stages and the sequence and matching of these executions must be well known. Hence this little reminder ;-).
+Now the resources in the module can be deleted by a \verb'terraform destroy', which displays the output in listing~\ref{lst:exampletfDestroy}. Entering ``yes'' at the prompt will delete the resource.
+
+\begin{lstlisting}[label=lst:exampletfDestroy]
+example_shop_article.example: Refreshing state... [name=Princess Rosalea]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  # example_shop_article.example will be destroyed
+  - resource "example_shop_article" "example" {
+      - description = "Child Shampoo & Conditioner" -> null
+      - id          = 1 -> null
+      - name        = "Princess Rosalea" -> null
+    }
+
+Plan: 0 to add, 0 to change, 1 to destroy.
+
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value:
+\end{lstlisting}
+
+This ``terraform lifecycle'' is probably not new to most of you, as you have been coming here to learn about terraform provider development. But it is important to remember it during the development phase, as callbacks are executed at the different lifecycle stages and the sequence and matching of these executions must be well known. Hence this little reminder ;-).
 
 \subsection{The Developer's View}
 \label{subsec:developers-view}
@@ -349,7 +376,7 @@ Although the second option is appealing, as it does not require any other tools 
 \subsubsection{The \emph{shop\_article} Terraform Resource}
 \label{subsec:emphsh-reso}
 
-For our example we implement one resource with the name \emph{example\_shop\_article}. The corresponding implementation is in \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource.go}{this file} in the example repository~\cite{ecky-l_terraform-provider-example_nodate} and short descriptions of what is happening in this file follow here.
+For our example we implement one resource with the name \emph{example\_shop\_article}. The corresponding implementation is in \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource.go}{this file} in the example repository~\cite{ecky-l_terraform-provider-example_nodate}. In this section will see a short description of this file.
 
 As with the provider itself, each resource is represented by a \emph{struct} and can contain arbitrary data. For our example the resources struct looks like the one in listing~\ref{lst:shopArticleResource}.
 
