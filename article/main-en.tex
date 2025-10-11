@@ -55,11 +55,16 @@
 
 \section{Introduction}
 
-blabla
+Here at OTTO we work with many different IT systems, for example to provide the online shop, process orders and shipments or manage customer data. Many of them are self developed and we use a mixture of on-premise and cloud infrastructure to host the services of which they consist. Since release and deploy time matters, as well as traceability of changes in deployment cycles, we use \emph{Infrastructure as Code} (\emph{IaC})~\cite{morris_infrastructure_as_code_2025} and declarative configuration management as much as possible. Most of the deployments and underlying infrastructure changes within my team are managed by terraform~\cite{noauthor_terraform_nodate} and most of the time we can use what is already provided in the terraform ecosystem.
+
+But sometimes this is not the case. We develop and run a service to manage permissions for topics in the asynchronous messaging system \emph{Apache Kafka} in the \emph{Confluent Cloud}~\cite{noauthor_apache_kafka_nodate, noauthor_confluent_nodate} and our customers are other development teams within the company, who use kafka on confluent for message and data exchange among and within their systems. They also use terraform, and there is no official provider available for our in-house API.\ Therefore we have the chance to develop a terraform provider for our service.
+
+In this article I will present what we learned about terraform provider development by using a small and artificial, but easy to follow example. For this example I extracted the things we learned (so far) during the course of our in-house provider development, and reshaped it to be easy to follow without in-house knowledge. Section~\ref{sec:technology-overview} gives a short overview over the used and necessary technologies. Section~\ref{sec:simple-rest-api} presents a mocked API that is used as a ``backend'' for the example and in Section~\ref{sec:creat-terr-prov} the provider example itself is described from two perspectives. Finally, Section~\ref{sec:summary} summarizes the results. The whole text is closely related to the \emph{terraform-provider-example} github repository~\cite{ecky-l_terraform-provider-example_nodate}, so you might want to clone this repository and look at it while you continue to read.
 
 \section{Technology Overview}
 \label{sec:technology-overview}
 
+As with most of today's software development challenges, there are already technologies, tools and frameworks available on which can be built upon. Terraform itself is programmed in \emph{Go} and the easiest way is to use \emph{Go} as well for provider development\footnote{Terraform communicates with providers via RPC, so strictly speaking it would be possible to use any programming language that is capable of RPC, but a high level SDK is only available for \emph{Go}.}. Therefore this section gives a very brief introduction to \emph{Go} and the terraform ecosystem itself.
 
 \subsection{The Go Programming Language}
 \label{subsec:go-progr-lang}
@@ -449,6 +454,7 @@ example_shop_article.example: Creating...
 The callback implementations for our example are quite simple. Normally one would encapsulate the backend calls in a helper function or object, instead of repeating the code in every callback function, and also do more advanced error handling. But for demonstration purposes it is just fine to have it that direct way.
 
 \section{Summary}
+\label{sec:summary}
 
 Sometimes it is necessary to maintain infrastructure as code with terraform for resources, which are not supported out of the box - be it because they are self-developed, or for other reasons. Terraform has a powerful plugin mechanism and well documented SDK, that enables the development of own in-house providers for such cases.
 
@@ -456,6 +462,6 @@ In this article we have introduced the terraform provider framework by using a s
 
 A accompanying \emph{DataSource} for the \emph{shop\_article} entity is not part of this example. But this is not very complicated after following this article and looking at the sources, so it is left for encouraged readers as an exercise.
 
-\printbibliography
+\printbibliography[heading=bibintoc]
 
 \end{document}
