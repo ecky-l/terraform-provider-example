@@ -4,6 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage[ngerman]{babel}
 \usepackage[pdftex]{color,graphicx}
 
 \usepackage[autocite=plain, backend=biber, style=numeric, sorting=nyt]{biblatex}
@@ -55,9 +56,9 @@
 \maketitle
 \tableofcontents
 
-\section{Introduction}
+\section{Einleitung}
 
-Here at OTTO we work with many different IT systems, for example to provide the online shop, process orders and shipments or manage customer data. Many of them are self developed and we use a mixture of on-premise and cloud infrastructure to host the services of which they consist. Since release and deploy time matters, as well as traceability of changes in deployment cycles, most teams use \emph{Infrastructure as Code} (\emph{IaC})~\autocite{morris_infrastructure_as_code_2025} and declarative configuration management as much as possible. Most of the deployments and infrastructure changes within my team are managed by terraform~\autocite{noauthor_terraform_nodate} and most of the time we can use what is already provided in the terraform ecosystem.
+Hier bei Otto arbeiten wir mit vielen verschiedenen IT-Systemen, z.B. für den Online-Shop, um Bestellungen und Lieferungen zu verarbeiten oder um Kundendaten zu verwalten. Viele davon sind selbst entwickelt und die Services werden verteilt auf on-premise- und cloud Infrastruktur gehostet. Die Zeit für Release- und Deploymentzyklen spielt eine große Rolle, genau wie die Nachvollziehbarkeit von Änderungen. Daher verwenden die meisten Teams sofern möglich \emph{Infrastructure as Code} (\emph{IaC})~\autocite{morris_infrastructure_as_code_2025} und deklaratives Konfigurationsmanagement. In meinem Team werden die meisten Deployments und Infrastrukturänderungen per Terraform~\autocite{noauthor_terraform_nodate} gemacht und die meisten Anwendungsfälle werden durch das existierende Terraform-Ökosystem abgedeckt.
 
 But sometimes this is not the case. We develop and run a service to manage permissions for topics in the asynchronous messaging system \emph{Apache Kafka} in the \emph{Confluent Cloud}~\autocite{noauthor_apache_kafka_nodate, noauthor_confluent_nodate} and our customers are other development teams within the company, who use kafka on confluent for message and data exchange among and within their systems. They also use terraform, and there is no official provider available for our in-house API.\ Therefore we have the chance to develop a terraform provider for our service.
 
