@@ -466,14 +466,14 @@ example_shop_article.example: Creating...
 
 In unserem Beispiel sind die Callback-Implementierungen bewusst einfach gehalten. In realen Projekten würde man Backend-Aufrufe in Hilfsfunktionen auslagern und eine robustere Fehlerbehandlung implementieren. Für Demonstrationszwecke genügt jedoch dieser direkte Ansatz.
 
-\section{Summary}
+\section{Zusammenfassung}
 \label{sec:summary}
 
-Sometimes it is necessary to maintain infrastructure as code with terraform for resources, which are not supported out of the box - be it because they are self-developed, or for other reasons. Terraform has a powerful plugin mechanism and well documented SDK, that enables the development of own in-house providers for such cases.
+Manchmal ist es notwendig, Infrastruktur als Code mit Terraform für Ressourcen zu verwalten, die nicht standardmäßig unterstützt werden, z.B.\ weil sie selbst entwickelt wurden. Terraform verfügt über einen leistungsfähigen Plugin-Mechanismus und ein gut dokumentiertes SDK, das die Entwicklung eigener, interner Provider für solche Fälle ermöglicht.
 
-In this article we have introduced the terraform provider framework by using a small, self contained and illustrative example. A terraform provider ``example'' is developed with one resource \emph{shop\_article} that is backed by an artificial REST backend, provided by a \emph{Wiremock scenario}. We have seen how the overall code can be structured, how development versions of a provider can be installed, used and tested, including tips and best practices to use the terraform testing framework.
+In diesem Artikel haben wir das Terraform-Provider-Framework anhand eines anschaulichen Beispiels vorgestellt. Ein Terraform-Provider namens ``example'' wurde entwickelt, der eine Ressource \emph{shop\_article} bereitstellt, die durch ein künstliches REST-Backend unterstützt wird. Das Backend wird in einem \emph{Wiremock}-Szenario simuliert. Wir haben gesehen, wie der gesamte Code strukturiert werden kann, wie Entwicklungsversionen eines Providers installiert, verwendet und getestet werden, sowie Tipps und bewährte Vorgehensweisen für die Nutzung des Terraform-Testframeworks.
 
-A accompanying \emph{DataSource} for the \emph{shop\_article} entity is not part of this example. But this is not very complicated after following this article and looking at the sources, so it is left for encouraged readers as an exercise.
+Eine begleitende \emph{DataSource} für die \emph{article}-Entität ist nicht Teil dieses Beispiels. Nach der Lektüre dieses Artikels und einem Blick in die Quelltexte sollte deren Implementierung jedoch nicht schwierig sein und bleibt daher als Fingerübung für interessierte Leser.
 
 \printbibliography[heading=bibintoc]
 
