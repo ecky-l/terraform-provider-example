@@ -80,7 +80,7 @@ The website \url{https://go.dev/} is the main entry point for resources to downl
 \subsection{The \emph{terraform} tool and ecosystem}
 \label{subsec:terr-tool-ecosyst}
 
-Terraform is a tool for managing \emph{Infrastructure as Code} (\emph{IcA}). At the heart is a terraform \emph{state}, a JSON file with a specific structure, that describes the current state of a certain infrastructure in form of its \emph{resources} and a set of resource definitions in \verb'.tf' files inside a directory, called a \emph{terraform module}. To create a infrastructure module, files with the ending \verb'.tf', containing resource definitions are placed in a directory. As a simple, artificial example consider a resource \emph{employee} with certain attributes:
+Terraform is a tool for managing \emph{Infrastructure as Code} (\emph{IcA}). At the heart is a terraform \emph{state}, a JSON file with a specific structure, that describes the current state of a certain infrastructure in form of its \emph{resources} and a set of resource definitions in \verb'.tf' files inside a directory, called a \emph{terraform module}. To create a infrastructure module, files with the ending \verb'.tf', containing resource definitions are placed in a directory. As a simple, artificial example consider a resource \emph{shop\_article} with certain attributes:
 
 \begin{lstlisting}
 resource "shop_article" "shampoo" {
@@ -118,7 +118,7 @@ However, to keep things simple we will consider a simple REST API backend for th
 
 \paragraph{The \emph{article} REST Resource}
 
-Our REST API manages a resource called \emph{shop\_article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of an illustrative example.
+Our REST API manages a resource called \emph{article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of an illustrative example.
 
 The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
 

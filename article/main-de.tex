@@ -81,7 +81,9 @@ Die Webseite \url{https://go.dev/} ist der zentrale Einstiegspunkt für alle Res
 \subsection{\emph{Terraform} und sein Ökosystem}
 \label{subsec:terr-tool-ecosyst}
 
-Terraform is a tool for managing \emph{Infrastructure as Code} (\emph{IcA}). At the heart is a terraform \emph{state}, a JSON file with a specific structure, that describes the current state of a certain infrastructure in form of its \emph{resources} and a set of resource definitions in \verb'.tf' files inside a directory, called a \emph{terraform module}. To create a infrastructure module, files with the ending \verb'.tf', containing resource definitions are placed in a directory. As a simple, artificial example consider a resource \emph{employee} with certain attributes:
+Terraform ist ein Werkzeug zur Verwaltung von Infrastructure as Code. Als zentrales Konzept dient der sogenannte \emph{Terraform-State}, eine JSON-Datei mit einer spezifischen Struktur, die den aktuellen Zustand einer bestimmten Infrastruktur in Form ihrer Ressourcen beschreibt. Zusätzlich gibt es eine Sammlung von Ressourcendefinitionen in \verb'.tf'-Dateien innerhalb eines Verzeichnisses, das als \emph{Terraform-Modul} bezeichnet wird.
+Um ein solches Modul zu erstellen, werden Dateien mit der Endung \verb'.tf' mit Ressourcendefinitionen in einem Verzeichnis abgelegt.
+Als einfaches Beispiel betrachten wir eine Ressourcen-Entität ``Shop-Artikel'' mit bestimmten Attributen:
 
 \begin{lstlisting}
 resource "shop_article" "shampoo" {
@@ -90,40 +92,43 @@ resource "shop_article" "shampoo" {
 }
 \end{lstlisting}
 
-In reality these are computer resources, such as networks, databases, virtual machine instances, etc. Terraform resources are used to describe conglomerations of computer infrastructure in cloud environments. Thus there is always some kind of \emph{backend} involved, usually a REST API, which implements the logic to provide the respective resources in a cloud environment.
+In der Realität handelt es sich dabei um Computerressourcen wie Netzwerke, Datenbanken, virtuelle Maschineninstanzen usw.. Terraform-Ressourcen werden verwendet, um Computerinfrastruktur in Cloud-Umgebungen zu beschreiben. Daher ist immer ein Backend beteiligt –in der Regel eine REST-API–, in dem die Logik implementiert ist, um die jeweiligen Ressourcen in der Cloud-Umgebung bereitzustellen.
 
-The \verb'terraform' command is used to read the \verb'.tf' files in a directory, take the necessary actions to create the resources (i.e.\ calls the API endpoints), and store the state into a state file. This state file is by default a local JSON file called \verb'terraform.tfstate', but can be configured to reside in a remote location, such as an cloud storage bucket or a database. Whenever resources need to be changed or deleted, or additional resources should be created, the respective resource definitions in the \verb'tf' files can be edited, deleted or extended by new resources. A \verb'terraform apply' would then do three things:
+Der Befehl \verb'terraform' wird verwendet, um die \verb'.tf'-Dateien in einem Verzeichnis einzulesen, die notwendigen Aktionen zum Erstellen der Ressourcen auszuführen (d.h.\ die API-Endpunkte aufzurufen) und den Zustand im Terraform-State zu speichern. Standardmäßig ist dies eine lokale JSON-Datei mit dem Namen \verb'terraform.tfstate'. In der Regel wird das Modul jedoch so konfiguriert, dass der State an einem entfernten Ort gespeichert wird, z.B. in einem Cloud-Speicher-Bucket oder in einer Datenbank. Wann immer Ressourcen erstellt, geändert oder gelöscht werden sollen, genügt es, die entsprechenden Ressourcendefinitionen in den \verb'.tf'-Dateien zu bearbeiten und \verb'terraform' erneut auszuführen. Ein \verb'terraform apply' tut dann drei Dinge:
 
 \begin{enumerate}
-\item\label{itm:tf-read} Get the current resources in the backend.
-\item\label{itm:tf-compare} Do a three-way compare between the current state, the fetched real resources and the resource (\verb'tf') files, and then:
+\item\label{itm:tf-read} Die aktuellen Ressourcen im Backend abrufen.
+\item\label{itm:tf-compare} Einen Drei-Wege-Vergleich zwischen dem aktuellen Status, den abgerufenen realen Ressourcen und den Ressourcendateien (\verb'.tf') durchführen, und anschließend:
   \begin{itemize}
-  \item Delete resources that are in the backend but not in the resource files.
-  \item Create resources that are not in the backend, but in the resource files.
-  \item Modify resources whose definition has changed in the resource files, compared to the previous definition in the state.
+  \item Ressourcen löschen, die im Backend vorhanden sind, aber nicht in den Ressourcendateien definiert sind.
+  \item Ressourcen erstellen, die in den Ressourcendateien definiert sind, aber im Backend noch nicht existieren.
+  \item Ressourcen anpassen, deren Definition sich in den Ressourcendateien im Vergleich zur vorherigen Definition im Status geändert hat.
   \end{itemize}
-\item\label{itm:tf-create-update} Store the new state in the state file.
+\item\label{itm:tf-create-update} Den neuen Status in der Statusdatei speichern.
 \end{enumerate}
 
-Terraform provides its functionality by means of a core component that reads the \verb'.tf' files and manages the state, and a set of plugins, which interact with various backends. These plugins are called \emph{providers}, as they provide the functionality of infrastructure management. They are decoupled from the terraform core and evolve independently. Providers are available for all well-known cloud providers and various other infrastructure providing entities, such as the IAM solution Keycloak \autocite{team_keycloak_nodate} or the secret manager Vault \autocite{noauthor_vault_nodate}.
+Terraform stellt seine Funktionalität über eine Kernkomponente bereit, die die \verb'.tf'-Dateien einliest und den Status verwaltet, sowie über eine Reihe von Plugins, die mit verschiedenen Backends interagieren. Diese Plugins werden Provider genannt und stellen die eigentliche Funktionalität des Infrastrukturanagements bereit. Sie sind vom Terraform-Kern entkoppelt und entwickeln sich unabhängig weiter. Provider existieren für alle bekannten Cloud-Anbieter sowie für verschiedene andere Infrastruktur-Dienste, wie zum Beispiel die IAM-Lösung Keycloak~\autocite{team_keycloak_nodate} oder den Secret Manager Vault~\autocite{noauthor_vault_nodate}.
 
-An entry point for searching terraform providers and their documentation is the terraform provider registry~\autocite{noauthor_terraform_registry_nodate}. There are numerous resources available on terraform with the main entry point being its homepage~\autocite{noauthor_terraform_nodate}. A good introduction with live examples can also be found in~\autocite{brikman_terraform_2022}.
+Ein Einstiegspunkt zur Suche nach Terraform-Providern und deren Dokumentation ist die Terraform Provider Registry~\autocite{noauthor_terraform_registry_nodate}. Es gibt zahlreiche Ressourcen zu Terraform, wobei die Hauptanlaufstelle die offizielle Homepage ist~\autocite{noauthor_terraform_nodate}. Eine gute Einführung mit praktischen Beispielen findet sich außerdem in~\autocite{brikman_terraform_2022}.
 
-
-\section{A Simple REST API Backend}
+\section{Ein einfaches REST API Backend}
 \label{sec:simple-rest-api}
 
-The purpose of terraform is to manage infrastructure as code, that is to create, modify and delete infrastructure \emph{resources}. How exactly these resources look like, is not strictly specified. On a cloud provider like AWS or GCP it might be virtual hardware resources, or firewall and permission rules, while on a keycloak instance it might be OpenID Connect Clients and appropriate credentials. On a local machine it might be files in the file system, service management scripts or mandatory access control policies (such as for SElinux).
+Der Zweck von Terraform besteht darin, Infrastruktur als Code zu verwalten, d.h. Infrastruktur-Ressourcen zu erstellen, zu ändern und zu löschen. Wie genau diese Ressourcen aussehen, ist nicht streng festgelegt und obliegt der Implementierung des jeweiligen Providers. Bei einem Cloud-Anbieter wie AWS oder GCP können es virtuelle Hardware-Ressourcen oder Firewall- und Berechtigungsregeln sein, während es bei einer Keycloak-Instanz OpenID-Connect-Clients und entsprechende Zugangsdaten sein könnten. Auf einer lokalen Maschine könnten es Dateien im Dateisystem, Dienstverwaltungs-Skripte oder Richtlinien für Mandatory Access Control (z. B. für SELinux) sein.
 
-However, to keep things simple we will consider a simple REST API backend for the purpose of this demonstration, where the resources are shop articles. Moreover we will not even create this backend - instead we will mock it. Wiremock~\autocite{noauthor_wiremock_nodate} is a powerful tool and library, which fulfills the sole objective to return specific responses based on certain matching input criteria. It is normally used to unit-test API clients in a variety of programming languages, when the genuine API backend is not (yet) available or should not be stressed for testing.
+Um die Dinge einfach zu halten, betrachten wir für diese Demonstration ein einfaches REST-API-Backend, bei dem die Ressourcen Shop-Artikel sind. Darüber hinaus werden wir dieses Backend gar nicht wirklich erstellen, sondern stattdessen nur simulieren. Wiremock~\autocite{noauthor_wiremock_nodate} ist ein leistungsfähiges Tool und eine Bibliothek, deren einziger Zweck es ist, bestimmte Antworten basierend auf bestimmten Eingabemustern zurückzugeben. Normalerweise wird es verwendet, um API-Clients in verschiedenen Programmiersprachen zu testen, wenn das echte API-Backend noch nicht verfügbar ist oder nicht für Tests benutzt werden soll.
 
-\paragraph{The \emph{article} REST Resource}
+\paragraph{Die REST-Ressource \emph{article}}
 
-Our REST API manages a resource called \emph{shop\_article}, which is essentially an online shop article. It contains an ID, a name and a description. Articles can be created, fetched by ID, updated and deleted. Although this is oversimplified, it is enough for the purpose of an illustrative example.
+Unsere REST-API verwaltet eine Ressource namens \emph{article}, die im Wesentlichen einen Online-Shop-Artikel darstellt. Sie enthält eine ID, einen Namen und eine Beschreibung. Artikel können erstellt, über ihre ID abgerufen, aktualisiert und gelöscht werden. Obwohl dies stark vereinfacht ist, reicht es für ein anschauliches Beispiel.
 
-The management of our REST resource can be described as a state machine: Initially there is no article, so a \verb'GET' call to a specific ID, say \emph{1}, will return a HTTP status 404. This is state $S_0$, or ``Started''. When a \verb'POST' is made to the \verb'/articles' endpoint, an article is created initially with a specific ID, say \emph{1}, and the state for this entity changes to $S_1$, or \emph{Article added}. A \verb'GET' call to \verb'/articles/1' in $S_1$ retrieves the initially created article. Now there are two possibilities to change the state again: A \verb'PUT' call to \verb'/articles/1' modifies the article and changes the state to $S_2$, or \emph{Article modified}. Subsequent \verb'GET' calls to \verb'/articles/1' will retrieve the modified article. A \verb'DELETE' call to \verb'/articles/1' will ``delete'' the article in either $S_1$ or $S_2$ and reset the state to $S_0$. Subsequent modifications or specific create/update parameters are not considered.
+Die Verwaltung unserer REST-Ressource kann als Zustandsmaschine beschrieben werden: Anfangs existiert kein Artikel, also liefert ein \verb'GET'-Aufruf zu einer bestimmten ID, z.B. \emph{1}, den HTTP-Status 404. Dies entspricht dem Zustand $S_0$, oder \emph{Started}. Wenn ein \verb'POST'-Aufruf an den Endpunkt \verb'/articles' erfolgt, wird ein Artikel mit einer bestimmten ID, z.B. \emph{1}, erstellt, und der Zustand der Entität wechselt zu $S_1$, oder \emph{Article added}. Ein \verb'GET'-Aufruf zu \verb'/articles/1' im Zustand $S_1$ liefert den erstellten Artikel zurück.
 
-In Wiremock this can be depicted as a \emph{Scenario}~\autocite{noauthor_wiremock_stateful_behavior_2025}. Our article is a children shampoo and the corresponding file can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/wiremock/mappings/shampoo.json}{here} in the github repository of this example~\autocite{ecky-l_terraform-provider-example_nodate}. Create a directory \emph{mappings} and place the file into this directory. Then download the standalone binary from the \emph{Wiremock} homepage, place it aside the \emph{mappings} directory and start wiremock up with \verb'java -jar wiremock-standalone-<version>.jar'. You should see the service starting up and listening on port \verb'8080'. Then you can verify whether our new ``API backend'' works:
+Nun gibt es zwei Möglichkeiten, den Zustand erneut zu ändern: Ein \verb'PUT'-Aufruf zu \verb'/articles/1' verändert den Artikel und setzt den Zustand auf $S_2$, oder \emph{Article modified}. Nachfolgende \verb'GET'-Aufrufe zu \verb'/articles/1' liefern nun den geänderten Artikel. Ein \verb'DELETE'-Aufruf zu \verb'/articles/1' ``löscht'' den Artikel sowohl in $S_1$ als auch in $S_2$ und setzt den Zustand wieder auf $S_0$ zurück. Weitere Modifikationen oder spezifische Erstellungs-/Aktualisierungsparameter werden hier nicht berücksichtigt.
+
+In Wiremock kann dies als \emph{Scenario} dargestellt werden~\autocite{noauthor_wiremock_stateful_behavior_2025}. Unser Artikel ist ein Kindershampoo, und die entsprechende Datei findet sich~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/wiremock/mappings/shampoo.json}{hier} im GitHub-Repository dieses Beispiels~\autocite{ecky-l_terraform-provider-example_nodate}.
+
+Erstellen Sie ein Verzeichnis namens mappings und legen Sie die Datei dort ab. Laden Sie anschließend die Standalone-Binärdatei von der Wiremock-Homepage herunter, platzieren Sie sie neben dem mappings-Verzeichnis und starten Sie Wiremock mit dem Befehl \verb'java -jar wiremock-standalone-<version>.jar'. Sie sollten sehen, dass der Dienst startet und auf Port \verb'8080' lauscht. Anschließend können Sie überprüfen, ob unser neues ``API-Backend'' funktioniert:
 
 \begin{lstlisting}[language=bash]
 $ curl -s localhost:8080/articles/1 | jq
@@ -161,7 +166,7 @@ $ curl -s localhost:8080/articles/1 | jq
 }
 \end{lstlisting}
 
-This is about all we need to back the \emph{shop\_article} resource for our demo terraform provider, which will be the topic of the next sections.
+Das ist alles was wir brauchen, um die \emph{shop\_article} Resource im Backend darzustellen, die wir in den folgenden Abschnitten brauchen werden.
 
 \section{Creating a Terraform Provider with one Resource}
 \label{sec:creat-terr-prov}
