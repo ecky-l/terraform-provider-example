@@ -31,6 +31,7 @@
   tabsize=2
 }
 \lstset{style=mystyle}
+\usepackage{upquote} % for backticks display in listings
 
 \usepackage[plainpages=false,pdfpagelabels,hidelinks]{hyperref}
 \hypersetup{
@@ -383,7 +384,7 @@ Although the second option is appealing, as it does not require any other tools 
 \subsubsection{The \emph{shop\_article} Terraform Resource}
 \label{subsec:emphsh-reso}
 
-For our example we implement one resource with the name \emph{example\_shop\_article}. The corresponding implementation is in \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource.go}{this file} in the example repository~\autocite{ecky-l_terraform-provider-example_nodate}. In this section will see a short description of this file.
+For our example we implement one resource with the name \emph{example\_shop\_article}. The corresponding implementation is in \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/example/shop_article_resource.go}{this file} in the example repository~\autocite{ecky-l_terraform-provider-example_nodate}.
 
 As with the provider itself, each resource is represented by a \emph{struct} and can contain arbitrary data. For our example the resources struct looks like the one in listing~\ref{lst:shopArticleResource}.
 
@@ -400,7 +401,7 @@ Its only field is a pointer to the provider struct value, to which it belongs. T
 \item[The \emph{state}] is the resource that \emph{exists} in the terraform state due to prior creation or modification. An empty state is created for a resource that not (yet) exists.
 \end{description}
 
-When a \verb'terraform plan' is executed by the practitioner, the plan and state values for each resource are compared and divergences are determined. If no divergences exist, the terraform lifecycle finishes with an appropriate message. Otherwise terraform shows what needs to be done to bring the state in sync with the plan for that resource. In our example the resource model struct is shown in listing~\ref{lst:shopArticleResourceModel}.
+When a \verb'terraform plan' is executed by the practitioner, the plan and state values for each resource are compared and divergences are determined. If no divergences exist, terraform finishes with an appropriate message. Otherwise terraform shows what needs to be done to bring the state in sync with the plan. In our example the resource model struct is shown in listing~\ref{lst:shopArticleResourceModel}.
 
 \begin{lstlisting}[label=lst:shopArticleResourceModel]
 type shopArticleResourceModel struct {
@@ -428,7 +429,7 @@ The methods do closely interact with their arguments. As you can see, the \verb'
 
 \paragraph{Error Handling}
 
-The response argument to the callbacks does also contain a field called \verb'Diagnostics'. It serves as a storage for information that is formatted and displayed to the practitioner during the terraform lifecycle and is particularly useful for error messages. Therefore the error handling is done frequently by a call to \verb'response.Diagnostics.AddError()', like in listing~\ref{lst:errorHandling} for JSON unmarshalling.
+The \verb'response' argument to the callbacks does also contain a field called \verb'Diagnostics'. It serves as a storage for information that is formatted and displayed to the practitioner during the terraform lifecycle and is particularly useful for error messages. Therefore the error handling is done frequently by a call to \verb'response.Diagnostics.AddError()', like in listing~\ref{lst:errorHandling} for JSON unmarshalling.
 
 \begin{lstlisting}[label=lst:errorHandling]
 if err := dec.Decode(&respBody); err != nil {
