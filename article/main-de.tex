@@ -168,20 +168,23 @@ $ curl -s localhost:8080/articles/1 | jq
 
 Das ist alles was wir brauchen, um die \emph{shop\_article} Resource im Backend darzustellen, die wir in den folgenden Abschnitten brauchen werden.
 
-\section{Creating a Terraform Provider with one Resource}
+\section{Entwicklung eines Terraform Provider mit einer Ressource}
 \label{sec:creat-terr-prov}
+
+Die Kommunikation zwischen dem Terraform Kern und den Providern funktioniert über eine RPC-Schnittstelle und Callback-Funktionen, die an bestimmten Stellen in der Interaktion der Punkte~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Abschnitt~\ref{subsec:terr-tool-ecosyst} ausgeführt werden. Diese Interaktionen, die man auch als den ``Terraform Lebenszyklus'' bezeichnen könnte, lassen sich aus zwei Perspektiven betrachten: aus der des Benutzers (in der Dokumentation auch als ``Practitioner'' bezeichnet) und der des Provider-Entwicklers. Im Folgenden werden beide Perspektiven betrachtet, angefangen mit der des Terraform-Benutzers.
+
 
 Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}.
 
-\subsection{The Practitioner's View}
+\subsection{Die Perspektive des Anwenders}
 \label{subsec:practitioners-view}
 
-A \emph{practitioner} is, as frequently denoted in the terraform plugin framework~\autocite{noauthor_terraform_framework_nodate}, the person who manages infrastructure as code in terraform. His point of view is a set of \verb'.tf' files in a directory, which makes up a terraform module. He is using the resources and data sources that a terraform provider provides and he is mostly concerned about creating and maintaining resources as code, as well as about installing and updating providers. His infrastructure should be kept stable among those installations and updates. A good introduction and guideline on the practitioner's view of terraform is~\autocite{brikman_terraform_2022}. In this section we will see how the world looks like from his perspective.
+Als ``Practitioner'' wird in der Dokumentation des Terraform Plugin Frameworks~\autocite{noauthor_terraform_framework_nodate} häufig die Person bezeichnet, die Infrastruktur als Code in Terraform verwaltet. Er bzw.\ sie hat einen Satz von \verb'.tf'-Dateien in einem Verzeichnis, das ein Terraform-Modul bildet und nutzt die Ressourcen und Datenquellen, die ein Provider bereitstellt. Neben der Pflege dieser Dateien beschäftigt er sich auch mit der Installation und Aktualisierung von Providern, und sein Hauptanliegen ist, dass seine Infrastruktur dabei stabil bleibt. Eine gute Einführung zur Benutzung von Terraform, also der Perspektive des ``Practitioners'', bietet~\autocite{brikman_terraform_2022}. In diesem Abschnitt werden wir die Welt unseres Beispiel-Providers aus seiner Perspektive aussieht.
 
-\subsubsection{An example terraform module}
+\subsubsection{Ein Beispiel-Terraform-Modul}
 \label{subsubsec:an-example-terraform}
 
-For our example, there is a terraform module (directory) with one file \verb'main.tf'. The content of this file looks like listing~\ref{lst:example.tf} and can be found~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/exampletf}{here} in the github repository~\autocite{ecky-l_terraform-provider-example_nodate}.
+In unserem Beispiel gibt es ein Terraform-Modul (Verzeichnis) mit einer Datei \verb'main.tf'. Der Inhalt dieser Datei ist in Listing~\ref{lst:example.tf} zu sehen und kann~\href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/exampletf}{hier} im GitHub-Repository~\autocite{ecky-l_terraform-provider-example_nodate} gefunden werden.
 
 \begin{lstlisting}[label=lst:example.tf]
 terraform {
@@ -202,25 +205,24 @@ resource "example_shop_article" "example" {
 }
 \end{lstlisting}
 
-Each terraform main module\footnote{There are also sub modules, which do not necessarily contain all configuration options when used in other (main) modules.} contains at least one \verb'terraform' block in which the \emph{required providers} are configured. Each provider is listed by its name and the source where it can be downloaded. The required version is optional, otherwise the latest version is resolved and used. It follows an optional \verb'provider' block for each required provider, in which special configuration can be passed. Afterwards, the resources and data sources of the provider can be used.
+Jedes Terraform-Hauptmodul\footnote{Es gibt auch Untermodule, die nicht notwendigerweise alle Konfigurationsoptionen enthalten, wenn sie in anderen (Haupt-)Modulen verwendet werden.} enthält mindestens einen \verb'terraform'-Block, in dem die \emph{erforderlichen Provider} konfiguriert werden. Jeder Provider wird mit seinem Namen und der Quelle, von der er heruntergeladen werden kann, aufgeführt. Die erforderliche Version ist optional, anderenfalls wird automatisch die neueste Version ermittelt und verwendet. Anschließend folgt optional jeweils ein \verb'provider'-Block, in dem spezielle Konfigurationen übergeben werden können. Danach können die Ressourcen und Datenquellen des Providers verwendet werden.
 
-A \verb'terraform init' in the directory with the terraform sources fetches the provider from the specified source and extracts it in the local \emph{.terraform} directory. A subsequent \verb'terraform plan' shows what is going to happen, i.e.\ creating the specified resource. Then, a \verb'terraform apply' would actually execute the plan. When these commands are run, terraform communicates with the provider and calls a set of functions that are described in the following.
+Ein \verb'terraform init' im Verzeichnis mit den Terraform-Quellen lädt den Provider aus der angegebenen Quelle herunter und extrahiert ihn in das lokale \emph{.terraform}-Verzeichnis. Ein anschließendes \verb'terraform plan' zeigt an, was passieren wird, d.h.\ welche Ressourcen erstellt/modifiziert/gelöscht werden. Danach führt ein \verb'terraform apply' den Plan tatsächlich aus. Während dieser Befehle kommuniziert Terraform mit dem Provider und ruft eine Reihe von Funktionen auf, die im Folgenden beschrieben werden.
 
-
-\subsubsection{Provider Installation}
+\subsubsection{Provider-Installation}
 \label{subsubsec:prov-inst}
 
-The \verb'source' parameter in the \verb'required_providers' block has a special structure which specifies where the provider's binary release can be found. It consists of three parts:
+Der \verb'source'-Parameter im \verb'required_providers'-Block hat eine spezielle Struktur, die angibt, wo das Binär-Release des Providers zu finden ist. Er besteht aus drei Teilen:
 
 \begin{itemize}
-\item The domain where the provider release resides.
-\item A name space for the provider, usually a team or company who is maintaining the provider
-\item The provider's name
+\item Der Domain, auf der sich das Provider-Release befindet.
+\item Einem Namensraum für den Provider, meist ein Team oder Unternehmen, von dem der Provider kommt.
+\item Dem Namen des Providers.
 \end{itemize}
 
-As a consequence, the source has always the schema \emph{<domain>/<namespace>/<provider name>}. Most providers are hosted on the terraform provider registry~\autocite{noauthor_terraform_registry_nodate}, therefore the domain \emph{registry.terraform.io} for those providers can be omitted for convenience. Otherwise it must be a valid domain under which a web server is hosting the provider binaries within the directory structure \emph{<namespace>/<provider name>}. In there, the releases must have a name that follows the schema \emph{terraform-provider-<name>\_<version>\_<arch>.zip}. The \emph{<name>} here is same name as in the third component of the provider URL, \verb'<version>' is the provider version, following a semantic versioning schema~\autocite{preston-werner_semantic_versioning_nodate} and \emph{<arch>} refers to the architecture and operating system for which the provider binary was compiled.
+Daraus ergibt sich, dass die Quelle immer dem Schema \emph{<domain>/<namespace>/<provider name>} folgt. Die meisten Provider werden im Terraform Provider Registry~\autocite{noauthor_terraform_registry_nodate} gehostet, weshalb die Domain \emph{registry.terraform.io} für diese Provider der Einfachheit halber weggelassen werden kann. Andernfalls muss es sich um eine gültige Domain handeln, unter der ein Webserver die Provider-Binärdateien innerhalb der Verzeichnisstruktur \emph{<namespace>/<provider name>} bereitstellt. Dort müssen die Releases nach dem Schema \emph{terraform-provider-<name>\_<version>\_<arch>.zip} benannt sein. Das \emph{<name>} ist dabei derselbe Name wie in der dritten Komponente der Provider-URL, \verb'<version>' ist die Provider-Version nach semantischer Versionsnummerierung~\autocite{preston-werner_semantic_versioning_nodate} und \emph{<arch>} bezeichnet die Architektur und das Betriebssystem, für die der Provider kompiliert wurde.
 
-Although recommended, hosting the provider on a domain is strictly speaking not necessary. Alternatively it is possible to keep the zipped binary in a local directory and configure that directory as a \verb'filesystem_mirror'. The process and possibilities are described in~\autocite{noauthor_terraform_provider_installation_nodate} and the simplest one is to place the zipped binary in a directory that follows the three-component schema of the provider location underneath \verb'~/.terraform.d/plugins/', where \verb'~' is the users home directory. In our example, with version \emph{0.0.1} and on macOS this would look like:
+Obwohl empfohlen, ist das Hosten des Providers auf einer Domain streng genommen nicht erforderlich. Alternativ kann die gezippte Binärdatei in einem lokalen Verzeichnis abgelegt und dieses als \verb'filesystem_mirror' konfiguriert werden. Der Prozess und die verschiedenen Möglichkeiten sind in~\autocite{noauthor_terraform_provider_installation_nodate} beschrieben. Die einfachste Variante besteht darin, die gezippte Binärdatei in ein Verzeichnis zu legen, das der dreiteiligen Schema-Struktur des Provider-Standorts unterhalb von \verb'~/.terraform.d/plugins/' folgt, wobei \verb'~' das Home-Verzeichnis des Benutzers ist. In unserem Beispiel mit der Version \emph{0.0.1} und unter macOS sieht dies folgendermaßen aus:
 
 \begin{lstlisting}
 /Users/<youruser>/.terraform.d/
@@ -233,26 +235,26 @@ Although recommended, hosting the provider on a domain is strictly speaking not 
             |-- terraform-provider-example\_0.0.1\_darwin\_arm64.zip
 \end{lstlisting}
 
-The \verb'<arch>' depends on the platform where the provider is compiled and used. A simple trick is to use the \verb'go' tool itself to determine the architecture and OS, since it outputs these values as needed, i.e.\ in a shell:
+Der Parameter \verb'<arch>' bezeichnet die Architektur der Plattform, für die der Provider kompiliert wurde. Um die aktuelle Architektur herauszufinden, kann man das \verb'go'-Tool selbst verwenden, da es die benötigten Werte für Architektur und Betriebssystem ausgibt. Dafür kann z.B.\ in einer Shell das folgende Kommando ausgeführt werden:
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\footnotesize,numbers=none]
 go version | cut -d' ' -f4 | sed -E 's/\//_/'
 \end{lstlisting}
 
-For our example this trick is part of the \verb'install' target in the \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/Makefile}{\emph{Makefile}}, which serves the build and install cycle. The easiest way to install our example provider is to clone the example repository~\autocite{ecky-l_terraform-provider-example_nodate}, then change to the \verb'src/tfp-example/' directory and type \verb'make install' (\emph{Go} must be installed as a precondition).
+Dieser Trick ist in unserem Beispiel Teil des \verb'install'-Ziels im \href{https://github.com/ecky-l/terraform-provider-example/blob/main/src/tfp-example/Makefile}{\emph{Makefile}} das den Build- und Installationszyklus steuert. Der einfachste Weg, unseren Beispiel-Provider zu installieren, besteht darin, im geklonten Beispiel-Repository~\autocite{ecky-l_terraform-provider-example_nodate} in das Verzeichnis \verb'src/tfp-example/' zu wechseln und \verb'make install' auszuführen (eine installierte \emph{Go}-Umgebung ist Voraussetzung).
 
-\subsubsection{Provider Usage and the terraform Lifecycle}
+\subsubsection{Verwendung des Providers und der ``Terraform-Lebenszyklus''}
 \label{subsubsec:prov-usage-terr}
 
-Once the provider is installed, it can be used. This is done in the two probably most executed terraform commands, which are executed in a terraform main module:
+Sobald der Provider installiert ist, kann er verwendet werden. Dies geschieht in den beiden wahrscheinlich am häufigsten ausgeführten Terraform-Befehlen, die in einem Terraform-Hauptmodul ausgeführt werden:
 
 \begin{description}
-\item[terraform plan] compares the current known terraform state with the resource definitions in the \verb'.tf' files. If there are differences, an output is generated that exactly specifies what terraform is going to do in case of \emph{apply}.
-\item[terraform apply] actually executes the changes that were determined in the \emph{plan}. Before that it outputs the changes in the same manner as with \emph{plan} and usually asks for confirmation (which can be suppressed with the \verb'--auto-approve' flag).
-\item[terraform destroy] deletes the resources from the backend and terraform state. This must also be confirmed.
+\item[\texttt{terraform plan}] vergleicht den aktuellen bekannten Terraform-State mit den Ressourcendefinitionen in den \verb'.tf'-Dateien. Wenn Unterschiede bestehen, wird eine Ausgabe erzeugt, die genau angibt, was Terraform im Falle eines \emph{apply} tun wird.
+\item[\texttt{terraform apply}] führt die im \emph{plan} ermittelten Änderungen aus. Zuvor werden die Änderungen in derselben Form angezeigt, und es wird eine Bestätigung verlangt (die mit dem Flag \verb'--auto-approve' unterdrückt werden kann).
+\item[\texttt{terraform destroy}] löscht die Ressourcen aus dem Backend und dem Terraform-State. Auch hier ist eine Bestätigung erforderlich.
 \end{description}
 
-To see this in action for our example, clone the example repository~\autocite{ecky-l_terraform-provider-example_nodate}, if you haven't done so already and start \emph{wiremock} as in Section~\ref{sec:simple-rest-api} with the shop article mappings from the directory \verb'src/wiremock/'. Then change to the directory \verb'src/exampletf/' and execute the commands. The \verb'terraform plan' should give the output in listing~\ref{lst:exampletfPlan}.
+Um dies in Aktion zu sehen, muss \emph{wiremock} im Verzeichnis \verb'src/wiremock/' gestartet werden. Das enthaltene \verb'mappings/'-Verzeichnis enthält das Szenario für den Shop-Artikel (vgl.\ Abschnitt~\ref{sec:simple-rest-api}). Im Verzeichnis \verb'src/exampletf/' können dann die o.g.\ Terraform-Befehle ausgeführt werden. Ein \verb'terraform plan' sollte die Ausgabe aus Listing~\ref{lst:exampletfPlan} liefern.
 
 \begin{lstlisting}[label=lst:exampletfPlan]
 
@@ -275,7 +277,7 @@ Note: You didn't use the -out option to save this plan, so Terraform can't guara
 
 \end{lstlisting}
 
-A subsequent \verb'terraform apply' should result in the same output as in listing~\ref{lst:exampletfPlan}, plus an additional confirmation inquiry that must be answered literally with ``yes''. If you do this and subsequently execute \verb'terraform plan' again, the output in listing~\ref{lst:exampletfPlanInSync} indicates that the terraform state, the resource definitions in the \verb'.tf' files and the actual resources in the backend are in sync.
+Ein anschließendes \verb'terraform apply' sollte dasselbe Ergebnis wie in Listing~\ref{lst:exampletfPlan} zeigen, ergänzt um eine zusätzliche Bestätigungsabfrage, die wortwörtlich mit ``yes'' beantwortet werden muss. Nachdem das erfolgt ist, zeigt ein anschließendes \verb'terraform plan' mit der Ausgabe in Listing~\ref{lst:exampletfPlanInSync}, dass der Terraform-State, die Ressourcendefinitionen in den \verb'.tf'-Dateien und die tatsächlichen Ressourcen im Backend synchron sind.
 
 \begin{lstlisting}[label=lst:exampletfPlanInSync]
 example_shop_article.example: Refreshing state... [name=Princess Rosalea]
@@ -285,7 +287,7 @@ No changes. Your infrastructure matches the configuration.
 Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
 \end{lstlisting}
 
-Now the resources in the module can be deleted by a \verb'terraform destroy', which displays the output in listing~\ref{lst:exampletfDestroy}. Entering ``yes'' at the prompt will delete the resource.
+Nun können die Ressourcen im Modul mit einem \verb'terraform destroy' gelöscht werden, wobei die Ausgabe in Listing~\ref{lst:exampletfDestroy} gezeigt wird. Mit der wortwörtlichen Eingabe von ``yes'' werden die Ressourcen gelöscht.
 
 \begin{lstlisting}[label=lst:exampletfDestroy]
 example_shop_article.example: Refreshing state... [name=Princess Rosalea]
@@ -311,7 +313,7 @@ Do you really want to destroy all resources?
   Enter a value:
 \end{lstlisting}
 
-This ``terraform lifecycle'' is probably not new to most of you, as you have been coming here to learn about terraform provider development. But it is important to remember it during the development phase, as callbacks are executed at the different lifecycle stages and the sequence and matching of these executions must be well known. Hence this little reminder ;-).
+Dieser ``Terraform-Lebenszyklus'' ist den meisten Lesern wahrscheinlich bekannt, da sie ihren Weg hierher gefunden haben, um mehr über die Entwicklung von Terraform-Providern zu lernen. Dennoch ist es wichtig, ihn sich während der Entwicklungsphase ins Gedächtnis zu rufen, um die Reihenfolge und Zuordnung der Callbacks in den verschiedenen Phasen herstellen zu können. Daher diese kleine Wiederholung ;-).
 
 \subsection{The Developer's View}
 \label{subsec:developers-view}

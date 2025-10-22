@@ -165,7 +165,7 @@ This is about all we need to back the \emph{shop\_article} resource for our demo
 \section{Creating a Terraform Provider with one Resource}
 \label{sec:creat-terr-prov}
 
-Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}.
+Communication between the terraform core and the providers is implemented via an RPC interface and callback functions that are executed at specific points in the interaction~\ref{itm:tf-read}-~\ref{itm:tf-create-update} in Section~\ref{subsec:terr-tool-ecosyst}. These interactions, which could be seen as the ``terraform lifecycle'', can be viewed from two perspectives: from the one of the terraform user, who is maintaining infrastructure (in the documentation also denoted as the ``practitioner'') and the one of the provider developer. In the following we will look at both of them, starting with the practitioner's perspective.
 
 \subsection{The Practitioner's View}
 \label{subsec:practitioners-view}
